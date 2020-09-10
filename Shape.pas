@@ -62,7 +62,7 @@ begin
   Result.Value := TIntersection.Create();
   Result.Value.d := b - det;
   Result.Value.mat := Self.mat;
-  Result.Value.point := Result.Value.d * Ray.dir;
+  Result.Value.point := Ray.org + Result.Value.d * Ray.dir;
   Result.Value.normal := (Result.Value.point - pos).Normalize;
 end;
 
