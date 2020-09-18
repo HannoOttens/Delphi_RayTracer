@@ -5,7 +5,7 @@ interface
 uses System.Math.Vectors;
 
 type
-  TRay = class
+  TRay = record
   public
     dir, org: TVector;
     bounces: Word;

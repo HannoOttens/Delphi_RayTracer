@@ -86,11 +86,11 @@ end;
 
 function RayTrace(Scene: TScene; cam: TCamera; Ray: TRay): TVector;
 var
-  d, ld, attn, pow: Single;
   Shape: TShape;
   Light: TLight;
   intsct, hit: TNullable<TIntersection>;
   lv, col, s: TVector;
+  d, ld, attn, pow: Single;
   I: Integer;
 begin
   // Intersect the scene
@@ -165,6 +165,7 @@ var
   Scene: TScene;
   org: TRay;
   col: TVector;
+  I: Integer;
 begin
   // Define scene
   Scene := TScene.Create(TList<TShape>.Create, TList<TLight>.Create);
@@ -196,8 +197,14 @@ begin
   for x := 0 to xMax do
     for y := 0 to yMax do
     begin
-      org := OriginRay(cam, x, y, xMax, yMax);
-      col := RayTrace(Scene, cam, org);
+      col := TVector.Zero;
+      for I := 0 to 1 do
+      begin
+
+         org := OriginRay(cam, x, y, xMax, yMax);
+         col := col + RayTrace(Scene, cam, org);
+      end;
+
       Form1.PaintBox1.Canvas.Pixels[x, y] :=
         RGB(ColClamp(col.x), ColClamp(col.y), ColClamp(col.W));
     end;

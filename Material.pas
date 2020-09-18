@@ -5,7 +5,7 @@ interface
 uses System.Math.Vectors, Vcl.Graphics;
 
 type
-  TMaterial = class
+  TMaterial = record
   public
     color: TVector;
     reflective: Single;
