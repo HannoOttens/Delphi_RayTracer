@@ -64,7 +64,7 @@ begin
     ParsFIdx(ObjF, pos1),
     ParsFIdx(ObjF, pos2),
     ParsFIdx(ObjF, pos3),
-    TMaterial.Create(TVector.Create(0.8,0.8,0.8), 0)
+    TMaterial.Create(TVector.Create(244,244,244), 0)
   );
 end;
 
