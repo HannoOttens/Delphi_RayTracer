@@ -120,6 +120,7 @@ end;
 
 constructor TPlane.Create(norm: TVector; dist: Single; mat: TMaterial);
 begin
+  norm := norm.Normalize;
   Self.mat := mat;
   Self.norm := norm;
   Self.pos := dist * norm;

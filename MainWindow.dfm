@@ -2,8 +2,8 @@ object Form1: TForm1
   Left = 0
   Top = 0
   Caption = 'Main'
-  ClientHeight = 352
-  ClientWidth = 462
+  ClientHeight = 604
+  ClientWidth = 954
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -16,20 +16,19 @@ object Form1: TForm1
   object PaintBox1: TPaintBox
     Left = 8
     Top = 8
-    Width = 446
-    Height = 305
+    Width = 938
+    Height = 557
   end
   object Label1: TLabel
-    Left = 407
-    Top = 319
-    Width = 31
+    Left = 903
+    Top = 576
+    Width = 3
     Height = 13
-    Caption = 'Label1'
   end
   object Button1: TButton
     Left = 8
-    Top = 319
-    Width = 393
+    Top = 571
+    Width = 889
     Height = 25
     Caption = 'RAYTRACE'
     TabOrder = 0
