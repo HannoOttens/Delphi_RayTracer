@@ -19,10 +19,17 @@ object Form1: TForm1
     Width = 446
     Height = 305
   end
+  object Label1: TLabel
+    Left = 407
+    Top = 319
+    Width = 31
+    Height = 13
+    Caption = 'Label1'
+  end
   object Button1: TButton
     Left = 8
     Top = 319
-    Width = 446
+    Width = 393
     Height = 25
     Caption = 'RAYTRACE'
     TabOrder = 0

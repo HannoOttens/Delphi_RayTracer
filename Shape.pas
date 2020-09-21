@@ -3,7 +3,13 @@ unit Shape;
 interface
 
 uses Vcl.Graphics, System.Math.Vectors, Ray, Material, Nullable, Intersection,
-  System.Math;
+  System.Math, Generics.Collections, SysUtils;
+
+type
+  TBounds = record
+    PMin, PMax: TVector;
+    constructor Create(PMin, PMax: TVector);
+  end;
 
 type
   TShape = class abstract
@@ -13,6 +19,10 @@ type
     /// <summary>Find the intersection with a ray</summary>
     /// <returns>A non-null point after intersection</returns>
     function Intersect(Ray: TRay): TNullable<TIntersection>; virtual; abstract;
+    /// <summary>Calculate the bounds of this shape</summary>
+    /// <returns>The object bounds</returns>
+    function Bound(): TBounds; virtual; abstract;
+    // TODO: Only return PMAX, we do not need PMin for splitting the bounds
   end;
 
 type
@@ -22,6 +32,7 @@ type
     radSqr: Single;
     constructor Create(pos: TVector; rad: Single; mat: TMaterial);
     function Intersect(Ray: TRay): TNullable<TIntersection>; override;
+    function Bound(): TBounds; override;
   end;
 
 type
@@ -29,8 +40,8 @@ type
   public
     norm: TVector;
     constructor Create(norm: TVector; dist: Single; mat: TMaterial);
-    // Distance from the origin
     function Intersect(Ray: TRay): TNullable<TIntersection>; override;
+    function Bound(): TBounds; override;
   end;
 
 type
@@ -41,11 +52,28 @@ type
     pos3: TVector;
     constructor Create(pos, pos2, pos3: TVector; mat: TMaterial);
     function Intersect(Ray: TRay): TNullable<TIntersection>; override;
+    function Bound(): TBounds; override;
+  end;
+
+type
+  TOBJ = class(TShape)
+  public
+    shps: TList<TShape>;
+    PMin, PMax: TVector;
+    constructor Create(PMin, PMax: TVector; shps: TList<TShape>);
+    function Intersect(Ray: TRay): TNullable<TIntersection>; override;
+    function Bound(): TBounds; override;
   end;
 
 implementation
 
 { TShpere }
+
+function TShpere.Bound: TBounds;
+begin
+  Result := TBounds.Create(pos + TVector.Create(rad, rad, rad),
+    pos - TVector.Create(rad, rad, rad));
+end;
 
 constructor TShpere.Create(pos: TVector; rad: Single; mat: TMaterial);
 begin
@@ -59,7 +87,6 @@ function TShpere.Intersect(Ray: TRay): TNullable<TIntersection>;
 var
   v: TVector;
   b, det: Single;
-
 begin
   Result := Default (TNullable<TIntersection>);
 
@@ -85,6 +112,11 @@ begin
 end;
 
 { TPlane }
+
+function TPlane.Bound: TBounds;
+begin
+  raise Exception.Create('A plane does not have a finite bounding box');
+end;
 
 constructor TPlane.Create(norm: TVector; dist: Single; mat: TMaterial);
 begin
@@ -113,6 +145,22 @@ begin
 end;
 
 { TTraingle }
+
+function TTriangle.Bound: TBounds;
+begin
+  Result := TBounds.Create(
+    TVector.Create(
+       Min(pos.X, Min(pos2.X, pos3.X)),
+       Min(pos.Y, Min(pos2.Y, pos3.Y)),
+       Min(pos.W, Min(pos2.W, pos3.W))
+    ),
+    TVector.Create(
+       Max(pos.X, Max(pos2.X, pos3.X)),
+       Max(pos.Y, Max(pos2.Y, pos3.Y)),
+       Max(pos.W, Max(pos2.W, pos3.W))
+    ) 
+  );
+end;
 
 constructor TTriangle.Create(pos, pos2, pos3: TVector; mat: TMaterial);
 begin
@@ -150,6 +198,80 @@ begin
   Result.Value.mat := mat;
   Result.Value.point := Ray.org + dist * Ray.dir;
   Result.Value.normal := norm * -Sign(cosi);;
+end;
+
+{ TOBJ }
+
+function TOBJ.Bound: TBounds;
+begin
+  Result := TBounds.Create(PMin, PMax);
+end;
+
+constructor TOBJ.Create(PMin, PMax: TVector; shps: TList<TShape>);
+begin
+  Self.PMin := PMin;
+  Self.PMax := PMax;
+  Self.shps := shps;
+end;
+
+function TOBJ.Intersect(Ray: TRay): TNullable<TIntersection>;
+var
+  VMin, VMax: Single;
+  TMin, TMax: Single;
+  d: Single;
+  intsct: TNullable<TIntersection>;
+  shpe: TShape;
+  indx: Word;
+begin
+  Result := Default (TNullable<TIntersection>);
+
+  VMin := (PMin.X - Ray.org.X) * Ray.invDir.X;
+  VMax := (PMax.X - Ray.org.X) * Ray.invDir.X;
+  TMin := Min(VMin, VMax);
+  TMax := Max(VMin, VMax);
+
+  if (TMax < TMin) or (TMax < 0) then
+    Exit;
+
+  VMin := (PMin.Y - Ray.org.Y) * Ray.invDir.Y;
+  VMax := (PMax.Y - Ray.org.Y) * Ray.invDir.Y;
+  TMin := Max(TMin, Min(VMin, VMax));
+  TMax := Min(TMax, Max(VMin, VMax));
+
+  if (TMax < TMin) or (TMax < 0) then
+    Exit;
+
+  VMin := (PMin.W - Ray.org.W) * Ray.invDir.W;
+  VMax := (PMax.W - Ray.org.W) * Ray.invDir.W;
+  TMin := Max(TMin, Min(VMin, VMax));
+  TMax := Min(TMax, Max(VMin, VMax));
+
+  if (TMax < TMin) or (TMax < 0) then
+    Exit;
+
+  // TODO: Set to Single.MaxValue
+  d := 100000000;
+  indx := 0;
+  while indx < shps.Count do
+  begin
+    shpe := shps[indx];
+    intsct := shpe.Intersect(Ray);
+    if intsct.HasValue and (intsct.Value.d < d) then
+    begin
+      d := intsct.Value.d;
+      Result := intsct;
+    end;
+
+    indx := indx + 1;
+  end;
+end;
+
+{ TBounds }
+
+constructor TBounds.Create(PMin, PMax: TVector);
+begin
+  Self.PMin := PMin;
+  Self.PMax := PMax;
 end;
 
 end.

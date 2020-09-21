@@ -9,12 +9,14 @@ uses
   Vcl.ExtCtrls, Math, Generics.Collections,
   Nullable, Camera, Ray, Scene, Light, Shape, Material, Intersection, OBJLoader;
 
-type TImage = array of array of TColor;
+type
+  TImage = array of array of TColor;
 
 type
   TForm1 = class(TForm)
     PaintBox1: TPaintBox;
     Button1: TButton;
+    Label1: TLabel;
     procedure Button1Click(Sender: TObject);
   end;
 
@@ -27,11 +29,13 @@ type
     img: TImage;
     procedure Execute; override;
   public
-    constructor Create(img: TImage;
-      const xMax, yMax, tIdx, mIdx: Word; cam: TCamera; Scene: TScene);
+    constructor Create(img: TImage; const xMax, yMax, tIdx, mIdx: Word;
+      cam: TCamera; Scene: TScene);
   end;
 
-type TThreads = array [0..7] of TRayTraceThread;
+type
+  TThreads = array [0 .. 7] of TRayTraceThread;
+
 type
   TMainTaskThread = class(TThread)
   protected
@@ -54,7 +58,6 @@ constructor TRayTraceThread.Create(img: TImage;
 begin
   inherited Create(True);
   Priority := tpHighest;
-
 
   // Props
   Self.tIdx := tIdx;
@@ -85,14 +88,22 @@ begin
 end;
 
 procedure TMainTaskThread.Execute;
-var tIdx, x, y, xMax, yMax: Word;
+var
+  tIdx, x, y, xMax, yMax: Word;
+  time: DWORD;
 begin
+  Form1.Label1.Caption := 'TRACING';
+  time := GetTickCount;
+
   tIdx := 0;
   while tIdx < 8 do
   begin
     threads[tIdx].WaitFor;
     tIdx := tIdx + 1;
   end;
+
+  time := GetTickCount - time;
+  Form1.Label1.Caption := IntToStr(time) + 'ms';
 
   xMax := Form1.PaintBox1.Width;
   yMax := Form1.PaintBox1.Height;
@@ -104,7 +115,7 @@ begin
     y := 0;
     while y < yMax do
     begin
-      Form1.PaintBox1.Canvas.Pixels[x,y] := img[x,y];
+      Form1.PaintBox1.Canvas.Pixels[x, y] := img[x, y];
       y := y + 1;
     end;
     x := x + 1;
@@ -115,6 +126,21 @@ end;
 { TForm }
 
 {$R *.dfm}
+
+function Inv(v: Single): Single;
+begin
+  if v <> 0 then
+  begin
+    Result := 1 / v;
+  end
+  else
+    Result := Single.PositiveInfinity;
+end;
+
+function InvVec3(v: TVector): TVector;
+begin
+  Result := TVector.Create(Inv(v.x), Inv(v.y), Inv(v.W));
+end;
 
 function OriginRay(cam: TCamera; x, y, xMax, yMax: Word): TRay;
 var
@@ -133,9 +159,8 @@ begin
   // Calculate origin ray
   fX := (x / xMax) - 0.5;
   fZ := (y / yMax) - 0.5;
-  dir := cam.pos + p0 + fX * aspRat * right - fZ * up;
-
-  OriginRay := TRay.Create(cam.pos, dir.Normalize, 0);
+  dir := (cam.pos + p0 + fX * aspRat * right - fZ * up).Normalize;
+  OriginRay := TRay.Create(cam.pos, dir, InvVec3(dir), 0);
 end;
 
 function LightIntersect(Scene: TScene; lr: TRay; ld: Single): Boolean;
@@ -185,7 +210,7 @@ var
   I: Integer;
 begin
   // Intersect the scene
-  d := Single.MaxValue;
+  d := Single.PositiveInfinity;
   for Shape in Scene.shapes do
   begin
     intsct := Shape.Intersect(Ray);
@@ -208,7 +233,7 @@ begin
       lv := lv.Normalize;
 
       if LightIntersect(Scene, TRay.Create(hit.Value.point + 0.01 *
-        hit.Value.normal, lv, 0), ld) then
+        hit.Value.normal, lv, InvVec3(lv), 0), ld) then
       begin
         // Diffuse light
         attn := 1 / (ld * ld);
@@ -273,8 +298,9 @@ begin
   // TMaterial.Create(TVector.Create(255, 255, 0), 0)));
   // Scene.shapes.Add(TPlane.Create(TVector.Create(0, 1, 0), 50,
   // TMaterial.Create(TVector.Create(0, 0, 255), 0.8)));
-  Scene.shapes := LoadOBJ('C:\Repos\Delphi_RayTracer\teapot.obj',
-    TVector.Create(0.2, 25, -2));
+  Scene.shapes := TList<TShape>.Create;
+  Scene.shapes.Add(LoadOBJ('C:\Repos\Delphi_RayTracer\teapot.obj',
+    TVector.Create(0.2, 25, -2)));
 
   // Add lights
   Scene.ligths.Add(TLight.Create(TVector.Create(-2, 0, 10), TVector.Create(255,
@@ -323,7 +349,7 @@ begin
         col := col + RayTrace(Scene, cam, org);
       end;
 
-      img[x,y] := RGB(ColClamp(col.x), ColClamp(col.y), ColClamp(col.W));
+      img[x, y] := RGB(ColClamp(col.x), ColClamp(col.y), ColClamp(col.W));
 
       y := y + mIdx;
     end;
@@ -331,6 +357,5 @@ begin
   end;
   inherited;
 end;
-
 
 end.
