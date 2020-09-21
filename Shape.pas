@@ -234,7 +234,7 @@ begin
   TMin := Min(VMin, VMax);
   TMax := Max(VMin, VMax);
 
-  if (TMax < TMin) or (TMax < 0) then
+  if (TMax < TMin) or (TMax < 0) or (TMin > Dist) then
     Exit;
 
   VMin := (PMin.Y - Ray.org.Y) * Ray.invDir.Y;
@@ -242,7 +242,7 @@ begin
   TMin := Max(TMin, Min(VMin, VMax));
   TMax := Min(TMax, Max(VMin, VMax));
 
-  if (TMax < TMin) or (TMax < 0) then
+  if (TMax < TMin) or (TMax < 0) or (TMin > Dist) then
     Exit;
 
   VMin := (PMin.W - Ray.org.W) * Ray.invDir.W;
