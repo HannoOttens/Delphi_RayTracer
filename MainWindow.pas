@@ -172,7 +172,7 @@ begin
 
   for Shape in Scene.shapes do
   begin
-    intsct := Shape.Intersect(lr);
+    intsct := Shape.Intersect(lr, ld);
     if intsct.HasValue and (intsct.Value.d < ld) then
       Exit;
   end;
@@ -213,7 +213,7 @@ begin
   d := Single.PositiveInfinity;
   for Shape in Scene.shapes do
   begin
-    intsct := Shape.Intersect(Ray);
+    intsct := Shape.Intersect(Ray, d);
     if intsct.HasValue and (intsct.Value.d < d) then
     begin
       d := intsct.Value.d;

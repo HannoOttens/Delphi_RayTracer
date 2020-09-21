@@ -18,7 +18,7 @@ type
     mat: TMaterial;
     /// <summary>Find the intersection with a ray</summary>
     /// <returns>A non-null point after intersection</returns>
-    function Intersect(Ray: TRay): TNullable<TIntersection>; virtual; abstract;
+    function Intersect(Ray: TRay; Dist: Single): TNullable<TIntersection>; virtual; abstract;
     /// <summary>Calculate the bounds of this shape</summary>
     /// <returns>The object bounds</returns>
     function Bound(): TBounds; virtual; abstract;
@@ -31,7 +31,7 @@ type
     rad: Single;
     radSqr: Single;
     constructor Create(pos: TVector; rad: Single; mat: TMaterial);
-    function Intersect(Ray: TRay): TNullable<TIntersection>; override;
+    function Intersect(Ray: TRay; Dist: Single): TNullable<TIntersection>; override;
     function Bound(): TBounds; override;
   end;
 
@@ -40,7 +40,7 @@ type
   public
     norm: TVector;
     constructor Create(norm: TVector; dist: Single; mat: TMaterial);
-    function Intersect(Ray: TRay): TNullable<TIntersection>; override;
+    function Intersect(Ray: TRay; Dist: Single): TNullable<TIntersection>; override;
     function Bound(): TBounds; override;
   end;
 
@@ -51,7 +51,7 @@ type
     pos2: TVector;
     pos3: TVector;
     constructor Create(pos, pos2, pos3: TVector; mat: TMaterial);
-    function Intersect(Ray: TRay): TNullable<TIntersection>; override;
+    function Intersect(Ray: TRay; Dist: Single): TNullable<TIntersection>; override;
     function Bound(): TBounds; override;
   end;
 
@@ -61,7 +61,7 @@ type
     shps: TList<TShape>;
     PMin, PMax: TVector;
     constructor Create(PMin, PMax: TVector; shps: TList<TShape>);
-    function Intersect(Ray: TRay): TNullable<TIntersection>; override;
+    function Intersect(Ray: TRay; Dist: Single): TNullable<TIntersection>; override;
     function Bound(): TBounds; override;
   end;
 
@@ -83,10 +83,10 @@ begin
   Self.radSqr := rad * rad;
 end;
 
-function TShpere.Intersect(Ray: TRay): TNullable<TIntersection>;
+function TShpere.Intersect(Ray: TRay; Dist: Single): TNullable<TIntersection>;
 var
   v: TVector;
-  b, det: Single;
+  b, det, d: Single;
 begin
   Result := Default (TNullable<TIntersection>);
 
@@ -101,6 +101,9 @@ begin
   det := Sqrt(det);
 
   // Sphere was not hit
+  d := b - det;
+  if d > Dist then
+    Exit;
   if b + det <= 0 then
     Exit;
 
@@ -126,22 +129,22 @@ begin
   Self.pos := dist * norm;
 end;
 
-function TPlane.Intersect(Ray: TRay): TNullable<TIntersection>;
+function TPlane.Intersect(Ray: TRay; Dist: Single): TNullable<TIntersection>;
 var
-  cosi, dist: Single;
+  cosi, d: Single;
 begin
   Result := Default (TNullable<TIntersection>);
 
   cosi := Ray.dir.DotProduct(norm);
-  dist := (pos - Ray.org).DotProduct(norm) / cosi;
+  d := (pos - Ray.org).DotProduct(norm) / cosi;
 
-  if (dist < 0) or (dist = 0) then
+  if (d > dist) or (d < 0) or (cosi = 0) then
     Exit;
 
   Result.Value := TIntersection.Create();
-  Result.Value.d := dist;
+  Result.Value.d := d;
   Result.Value.mat := mat;
-  Result.Value.point := Ray.org + dist * Ray.dir;
+  Result.Value.point := Ray.org + d * Ray.dir;
   Result.Value.normal := norm * -Sign(cosi);;
 end;
 
@@ -172,21 +175,21 @@ begin
   Self.norm := (pos2 - pos).CrossProduct(pos3 - pos2).Normalize;
 end;
 
-function TTriangle.Intersect(Ray: TRay): TNullable<TIntersection>;
+function TTriangle.Intersect(Ray: TRay; Dist: Single): TNullable<TIntersection>;
 var
   pHit: TVector;
-  cosi, dist: Single;
+  cosi, d: Single;
 begin
   Result := Default (TNullable<TIntersection>);
 
   cosi := Ray.dir.DotProduct(norm);
-  dist := (pos - Ray.org).DotProduct(norm) / cosi;
+  d := (pos - Ray.org).DotProduct(norm) / cosi;
 
   // Dit not hit plane traingle lies in
-  if (dist < 0) or (cosi = 0) then
+  if (d > Dist) or (d < 0) or (cosi = 0) then
     Exit;
 
-  pHit := Ray.org + dist * Ray.dir;
+  pHit := Ray.org + d * Ray.dir;
   if (norm.DotProduct((pos2 - pos).CrossProduct(pHit - pos)) <= 0) then
     Exit;
   if (norm.DotProduct((pos3 - pos2).CrossProduct(pHit - pos2)) <= 0) then
@@ -195,9 +198,9 @@ begin
     Exit;
 
   Result.Value := TIntersection.Create();
-  Result.Value.d := dist;
+  Result.Value.d := d;
   Result.Value.mat := mat;
-  Result.Value.point := Ray.org + dist * Ray.dir;
+  Result.Value.point := Ray.org + d * Ray.dir;
   Result.Value.normal := norm * -Sign(cosi);;
 end;
 
@@ -215,7 +218,7 @@ begin
   Self.shps := shps;
 end;
 
-function TOBJ.Intersect(Ray: TRay): TNullable<TIntersection>;
+function TOBJ.Intersect(Ray: TRay; Dist: Single): TNullable<TIntersection>;
 var
   VMin, VMax: Single;
   TMin, TMax: Single;
@@ -247,16 +250,15 @@ begin
   TMin := Max(TMin, Min(VMin, VMax));
   TMax := Min(TMax, Max(VMin, VMax));
 
-  if (TMax < TMin) or (TMax < 0) then
+  if (TMax < TMin) or (TMax < 0) or (TMin > Dist) then
     Exit;
 
-  // TODO: Set to Single.MaxValue
-  d := 100000000;
+  d := Dist;
   indx := 0;
   while indx < shps.Count do
   begin
     shpe := shps[indx];
-    intsct := shpe.Intersect(Ray);
+    intsct := shpe.Intersect(Ray, d);
     if intsct.HasValue and (intsct.Value.d < d) then
     begin
       d := intsct.Value.d;
