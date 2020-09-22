@@ -202,6 +202,7 @@ end;
 
 function RayTrace(Scene: TScene; cam: TCamera; Ray: TRay): TVector;
 var
+  NRay: TRay;
   Shape: TShape;
   Light: TLight;
   intsct, hit: TNullable<TIntersection>;

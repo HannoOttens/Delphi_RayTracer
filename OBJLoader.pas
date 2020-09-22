@@ -22,7 +22,7 @@ type
 
 function Rebound(Shps: TList<TShape>): TBounds;
 function LoadOBJ(fileName: string; ofst: TVector): TShape;
-function SubDevide(DvOn: Word; PMin, PMax: TVector; shps: TList<TShape>): TShape;
+function SubDevide(DvOn: Word; const PMin, PMax: TVector; shps: TList<TShape>): TShape;
 
 implementation
 
@@ -64,7 +64,7 @@ begin
 end;
 
 { Subdeviding an OBJ }
-function SubDevide(DvOn: Word; PMin, PMax: TVector; shps: TList<TShape>): TShape;
+function SubDevide(DvOn: Word; const PMin, PMax: TVector; shps: TList<TShape>): TShape;
 var PMdn, PMdx: TVector;
     ShpL, ShpR, ShpN: TList<TShape>;
     ObjL, ObjR: TShape;
@@ -147,7 +147,7 @@ begin
   ListOfStrings.DelimitedText := Str;
 end;
 
-function ParsVec3(ofst: TVector; x, y, z: string): TVector;
+function ParsVec3(const ofst: TVector; x, y, z: string): TVector;
 begin
   Result := TVector.Create(StrToFloat(x), StrToFloat(z), StrToFloat(y)) + ofst;
 end;
