@@ -287,9 +287,10 @@ begin
   Scene := TScene.Create(TList<TShape>.Create, TList<TLight>.Create);
 
   // Add shapes
-  Scene.shapes.Add(TShpere.Create(TVector.Create(3, 30, 0), 2,
+    // Add shapes
+  Scene.shapes.Add(TShpere.Create(TVector.Create(6, 30, -2), 2,
     TMaterial.Create(TVector.Create(0, 255, 255), 0)));
-  Scene.shapes.Add(TShpere.Create(TVector.Create(-6, 28, 0), 3,
+  Scene.shapes.Add(TShpere.Create(TVector.Create(-8, 35, 0), 3,
     TMaterial.Create(TVector.Create(0, 255, 0), 0.5)));
   Scene.shapes.Add(TShpere.Create(TVector.Create(0, 28, -3), 2,
     TMaterial.Create(TVector.Create(255, 0, 0), 0)));
@@ -297,8 +298,10 @@ begin
     TMaterial.Create(TVector.Create(255, 255, 0), 0)));
   Scene.shapes.Add(TShpere.Create(TVector.Create(1, 26, 1), 0.5,
     TMaterial.Create(TVector.Create(255, 255, 0), 0)));
+  Scene.shapes.Add(LoadOBJ('C:\Repos\Delphi_RayTracer\cow.obj',
+    TVector.Create(0, 30, 0)));
   Scene.shapes.Add(LoadOBJ('C:\Repos\Delphi_RayTracer\teapot.obj',
-    TVector.Create(0.2, 25, -2)));
+    TVector.Create(0.2, 40, 3)));
 
   // Add lights
   Scene.ligths.Add(TLight.Create(TVector.Create(-2, 0, 10), TVector.Create(255,
