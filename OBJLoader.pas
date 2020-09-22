@@ -20,7 +20,9 @@ type
     constructor Create();
   end;
 
-function LoadOBJ(fileName: string; ofst: TVector): TOBJ;
+function Rebound(Shps: TList<TShape>): TBounds;
+function LoadOBJ(fileName: string; ofst: TVector): TShape;
+function SubDevide(DvOn: Word; PMin, PMax: TVector; shps: TList<TShape>): TShape;
 
 implementation
 
@@ -62,17 +64,17 @@ begin
 end;
 
 { Subdeviding an OBJ }
-function SubDevide(DvOn: Word; PMin, PMax: TVector; shps: TList<TShape>): TOBJ;
-var PMdn, PMdx, Bndm: TVector;
+function SubDevide(DvOn: Word; PMin, PMax: TVector; shps: TList<TShape>): TShape;
+var PMdn, PMdx: TVector;
     ShpL, ShpR, ShpN: TList<TShape>;
-    ObjL, ObjR: TOBJ;
+    ObjL, ObjR: TShape;
     Indx: Word;
     Bund: TBounds;
 begin
   // Group objects per 8
-  if shps.Count < 8 then
+  if shps.Count < 4 then
   begin
-    Result := TOBJ.Create(PMin, PMax, shps);
+    Result := AabbCreate(PMin, PMax, shps);
     Exit;
   end;
 
@@ -113,12 +115,12 @@ begin
 
   if ShpL.Count = 0 then
   begin
-    Result := TOBJ.Create(PMin, PMax, ShpR);
+    Result := AabbCreate(PMin, PMax, ShpR);
     Exit;
   end;
   if ShpR.Count = 0 then
   begin
-    Result := TOBJ.Create(PMin, PMax, ShpL);
+    Result := AabbCreate(PMin, PMax, ShpL);
     Exit;
   end;
 
@@ -132,7 +134,7 @@ begin
   ShpN := TList<TShape>.Create;
   ShpN.Add(ObjL);
   ShpN.Add(ObjR);
-  Result := TOBJ.Create(PMin, PMax, ShpN);
+  Result := AabbCreate(PMin, PMax, ShpN);
 end;
 
 { OBJ File Loader }
@@ -162,13 +164,13 @@ begin
   Result := ObjF.v[vIdx];
 end;
 
-function ParsTria(ObjF: TOBJFile; pos1, pos2, pos3: string): TTriangle;
+function ParsTria(ObjF: TOBJFile; pos1, pos2, pos3: string): TShape;
 begin
-  Result := TTriangle.Create(ParsFIdx(ObjF, pos1), ParsFIdx(ObjF, pos2),
+  Result := TriaCreate(ParsFIdx(ObjF, pos1), ParsFIdx(ObjF, pos2),
     ParsFIdx(ObjF, pos3), TMaterial.Create(TVector.Create(244, 244, 244), 0));
 end;
 
-function LoadOBJ(fileName: string; ofst: TVector): TOBJ;
+function LoadOBJ(fileName: string; ofst: TVector): TShape;
 var
   PMin, PMax: TVector;
   Vec3: TVector;
@@ -201,7 +203,10 @@ begin
     Readln(TxtF, Line);
     Split(' ', Line, SepL);
 
-    case IndexStr(SepL[0], ['v', 'f']) of
+    // Skip lines and polys larger than 4
+    if (SepL.Count < 4) or (SepL.Count > 6)  then Continue;
+
+    case IndexStr(SepL[0], ['v', 'vn', 'f', '#']) of
       0:
         begin
           Vec3 := ParsVec3(ofst, SepL[1], SepL[2], SepL[3]);
@@ -215,17 +220,25 @@ begin
           PMax.Y := Max(PMax.Y, Vec3.y);
           PMax.W := Max(PMax.W, Vec3.w);
         end;
-      // 1: ObjF.vn.Add(ParsVec3(SepL[1], SepL[2], SepL[3]));
-      1:
+       //1: ObjF.vn.Add(ParsVec3(TVector.Zero, SepL[1], SepL[2], SepL[3]));
+       2:
         begin
+          if SepL[3] = '' then Continue;
+
           shps.Add(ParsTria(ObjF, SepL[1], SepL[2], SepL[3]));
+          if SepL.Count = 5 then begin
+            if SepL[4] = '' then Continue;
+            shps.Add(ParsTria(ObjF, SepL[2], SepL[3], SepL[4]));
+          end;
         end;
+       3: Continue;
     end;
   end;
 
   // Add BB information
   Result := SubDevide(0, PMin, PMax, shps);
 
+  OBJF.Destroy;
   CloseFile(TxtF);
 end;
 

@@ -11,88 +11,64 @@ type
     constructor Create(PMin, PMax: TVector);
   end;
 
-type
-  TShape = class abstract
+  type
+  EShape = (Sphr, Plne, Tria, Aabb, ObjB);
+  TShape = record
   public
+    kind: EShape;
     pos: TVector;
     mat: TMaterial;
+
     /// <summary>Find the intersection with a ray</summary>
     /// <returns>A non-null point after intersection</returns>
-    function Intersect(Ray: TRay; Dist: Single): TNullable<TIntersection>; virtual; abstract;
+    function Intersect(Ray: TRay; Dist: Single): TNullable<TIntersection>;
     /// <summary>Calculate the bounds of this shape</summary>
     /// <returns>The object bounds</returns>
-    function Bound(): TBounds; virtual; abstract;
     // TODO: Only return PMAX, we do not need PMin for splitting the bounds
-  end;
+    function Bound(): TBounds;
 
-type
-  TShpere = class(TShape)
-  public
-    rad: Single;
-    radSqr: Single;
-    constructor Create(pos: TVector; rad: Single; mat: TMaterial);
-    function Intersect(Ray: TRay; Dist: Single): TNullable<TIntersection>; override;
-    function Bound(): TBounds; override;
-  end;
+    Case EShape of
+       Sphr: (rad, radSqr: Single);
+       Plne: (pnrm: TVector);
+       Tria: (tnrm, pos2, pos3: TVector);
+       Aabb: (PMin, PMax: TVector; Shps: TList<TShape>);
+    end;
 
-type
-  TPlane = class(TShape)
-  public
-    norm: TVector;
-    constructor Create(norm: TVector; dist: Single; mat: TMaterial);
-    function Intersect(Ray: TRay; Dist: Single): TNullable<TIntersection>; override;
-    function Bound(): TBounds; override;
-  end;
-
-type
-  TTriangle = class(TShape)
-  public
-    norm: TVector;
-    pos2: TVector;
-    pos3: TVector;
-    constructor Create(pos, pos2, pos3: TVector; mat: TMaterial);
-    function Intersect(Ray: TRay; Dist: Single): TNullable<TIntersection>; override;
-    function Bound(): TBounds; override;
-  end;
-
-type
-  TOBJ = class(TShape)
-  public
-    shps: TList<TShape>;
-    PMin, PMax: TVector;
-    constructor Create(PMin, PMax: TVector; shps: TList<TShape>);
-    function Intersect(Ray: TRay; Dist: Single): TNullable<TIntersection>; override;
-    function Bound(): TBounds; override;
-  end;
+function SphrCreate(pos: TVector; rad: Single; mat: TMaterial): TShape;
+function PlneCreate(norm: TVector; dist: Single; mat: TMaterial): TShape;
+function TriaCreate(pos, pos2, pos3: TVector; mat: TMaterial): TShape;
+function AabbCreate(PMin, PMax: TVector; shps: TList<TShape>): TShape;
 
 implementation
 
 { TShpere }
 
-function TShpere.Bound: TBounds;
+function SphrCreate(pos: TVector; rad: Single; mat: TMaterial): TShape;
 begin
-  Result := TBounds.Create(pos + TVector.Create(rad, rad, rad),
-    pos - TVector.Create(rad, rad, rad));
+  Result.kind := EShape.Sphr;
+  Result.pos := pos;
+  Result.mat := mat;
+  Result.rad := rad;
+  Result.radSqr := rad * rad;
 end;
 
-constructor TShpere.Create(pos: TVector; rad: Single; mat: TMaterial);
+function SphrBound(Shpe: TShape): TBounds;
 begin
-  Self.pos := pos;
-  Self.mat := mat;
-  Self.rad := rad;
-  Self.radSqr := rad * rad;
+  Result := TBounds.Create(
+    Shpe.pos - TVector.Create(Shpe.rad, Shpe.rad, Shpe.rad),
+    Shpe.pos + TVector.Create(Shpe.rad, Shpe.rad, Shpe.rad));
 end;
 
-function TShpere.Intersect(Ray: TRay; Dist: Single): TNullable<TIntersection>;
+function SphrIntersect(Shpe: TShape; Ray: TRay; Dist: Single): TNullable<TIntersection>;
 var
   v: TVector;
   b, det, d: Single;
 begin
   Result := Default (TNullable<TIntersection>);
 
-  v := Ray.org - pos;
+  v := Ray.org - Shpe.pos;
   b := -(v.DotProduct(Ray.dir));
-  det := (b * b) - v.DotProduct(v) + radSqr;
+  det := (b * b) - v.DotProduct(v) + Shpe.radSqr;
 
   // Sphere was not hit
   if det <= 0 then
@@ -109,144 +85,148 @@ begin
 
   Result.Value := TIntersection.Create();
   Result.Value.d := b - det;
-  Result.Value.mat := Self.mat;
+  Result.Value.mat := Shpe.mat;
   Result.Value.point := Ray.org + Result.Value.d * Ray.dir;
-  Result.Value.normal := (Result.Value.point - pos).Normalize;
+  Result.Value.normal := (Result.Value.point - Shpe.pos).Normalize;
 end;
 
 { TPlane }
 
-function TPlane.Bound: TBounds;
+function PlneCreate(norm: TVector; dist: Single; mat: TMaterial): TShape;
+begin
+  Result.kind := EShape.Plne;
+  Result.mat := mat;
+  Result.pos := dist * norm;
+  Result.pnrm := norm.Normalize;
+end;
+
+function PlneBound(shpe: TShape): TBounds;
 begin
   raise Exception.Create('A plane does not have a finite bounding box');
 end;
 
-constructor TPlane.Create(norm: TVector; dist: Single; mat: TMaterial);
-begin
-  norm := norm.Normalize;
-  Self.mat := mat;
-  Self.norm := norm;
-  Self.pos := dist * norm;
-end;
-
-function TPlane.Intersect(Ray: TRay; Dist: Single): TNullable<TIntersection>;
+function PlneIntersect(Shpe: TShape; Ray: TRay; Dist: Single): TNullable<TIntersection>;
 var
   cosi, d: Single;
 begin
   Result := Default (TNullable<TIntersection>);
 
-  cosi := Ray.dir.DotProduct(norm);
-  d := (pos - Ray.org).DotProduct(norm) / cosi;
+  cosi := Ray.dir.DotProduct(Shpe.pnrm);
+  d := (Shpe.pos - Ray.org).DotProduct(Shpe.pnrm) / cosi;
 
   if (d > dist) or (d < 0) or (cosi = 0) then
     Exit;
 
   Result.Value := TIntersection.Create();
   Result.Value.d := d;
-  Result.Value.mat := mat;
+  Result.Value.mat := Shpe.mat;
   Result.Value.point := Ray.org + d * Ray.dir;
-  Result.Value.normal := norm * -Sign(cosi);;
+  Result.Value.normal := Shpe.pnrm * -Sign(cosi);;
 end;
 
 { TTraingle }
 
-function TTriangle.Bound: TBounds;
+function TriaCreate(pos, pos2, pos3: TVector; mat: TMaterial): TShape;
+begin
+  Result.kind := EShape.Tria;
+  Result.pos := pos;
+  Result.pos2 := pos2;
+  Result.pos3 := pos3;
+  Result.mat := mat;
+  Result.tnrm := (pos2 - pos).CrossProduct(pos3 - pos2).Normalize;
+end;
+
+function TriaBound(Sphe: TShape): TBounds;
 begin
   Result := TBounds.Create(
     TVector.Create(
-       Min(pos.X, Min(pos2.X, pos3.X)),
-       Min(pos.Y, Min(pos2.Y, pos3.Y)),
-       Min(pos.W, Min(pos2.W, pos3.W))
+       Min(Sphe.pos.X, Min(Sphe.pos2.X, Sphe.pos3.X)),
+       Min(Sphe.pos.Y, Min(Sphe.pos2.Y, Sphe.pos3.Y)),
+       Min(Sphe.pos.W, Min(Sphe.pos2.W, Sphe.pos3.W))
     ),
     TVector.Create(
-       Max(pos.X, Max(pos2.X, pos3.X)),
-       Max(pos.Y, Max(pos2.Y, pos3.Y)),
-       Max(pos.W, Max(pos2.W, pos3.W))
+       Max(Sphe.pos.X, Max(Sphe.pos2.X, Sphe.pos3.X)),
+       Max(Sphe.pos.Y, Max(Sphe.pos2.Y, Sphe.pos3.Y)),
+       Max(Sphe.pos.W, Max(Sphe.pos2.W, Sphe.pos3.W))
     ) 
   );
 end;
 
-constructor TTriangle.Create(pos, pos2, pos3: TVector; mat: TMaterial);
-begin
-  Self.pos := pos;
-  Self.pos2 := pos2;
-  Self.pos3 := pos3;
-  Self.mat := mat;
-  Self.norm := (pos2 - pos).CrossProduct(pos3 - pos2).Normalize;
-end;
-
-function TTriangle.Intersect(Ray: TRay; Dist: Single): TNullable<TIntersection>;
+function TriaIntersect(Shpe: TShape; Ray: TRay; Dist: Single): TNullable<TIntersection>;
 var
   pHit: TVector;
-  cosi, d: Single;
+  cosi, d, u, v, w: Single;
 begin
   Result := Default (TNullable<TIntersection>);
 
-  cosi := Ray.dir.DotProduct(norm);
-  d := (pos - Ray.org).DotProduct(norm) / cosi;
+  cosi := Ray.dir.DotProduct(Shpe.tnrm);
+  d := (Shpe.pos - Ray.org).DotProduct(Shpe.tnrm) / cosi;
 
   // Dit not hit plane traingle lies in
   if (d > Dist) or (d < 0) or (cosi = 0) then
     Exit;
 
   pHit := Ray.org + d * Ray.dir;
-  if (norm.DotProduct((pos2 - pos).CrossProduct(pHit - pos)) <= 0) then
+  w := Shpe.tnrm.DotProduct((Shpe.pos2 - Shpe.pos).CrossProduct(pHit - Shpe.pos));
+  if (w <= 0) then
     Exit;
-  if (norm.DotProduct((pos3 - pos2).CrossProduct(pHit - pos2)) <= 0) then
+  u := Shpe.tnrm.DotProduct((Shpe.pos3 - Shpe.pos2).CrossProduct(pHit - Shpe.pos2));
+  if (u <= 0) then
     Exit;
-  if (norm.DotProduct((pos - pos3).CrossProduct(pHit - pos3)) <= 0) then
+  v := Shpe.tnrm.DotProduct((Shpe.pos - Shpe.pos3).CrossProduct(pHit - Shpe.pos3));
+  if (v <= 0) then
     Exit;
 
   Result.Value := TIntersection.Create();
   Result.Value.d := d;
-  Result.Value.mat := mat;
+  Result.Value.mat := Shpe.mat;
   Result.Value.point := Ray.org + d * Ray.dir;
-  Result.Value.normal := norm * -Sign(cosi);;
+  Result.Value.normal := -Sign(cosi) * Shpe.tnrm;
 end;
 
-{ TOBJ }
+{ TAabb }
 
-function TOBJ.Bound: TBounds;
+function AabbCreate(PMin, PMax: TVector; shps: TList<TShape>): TShape;
 begin
-  Result := TBounds.Create(PMin, PMax);
+  Result.Kind := EShape.Aabb;
+  Result.PMin := PMin;
+  Result.PMax := PMax;
+  Result.Shps := shps;
 end;
 
-constructor TOBJ.Create(PMin, PMax: TVector; shps: TList<TShape>);
+function AabbBound(Shpe: TShape): TBounds;
 begin
-  Self.PMin := PMin;
-  Self.PMax := PMax;
-  Self.shps := shps;
+  Result := TBounds.Create(Shpe.PMin, Shpe.PMax);
 end;
 
-function TOBJ.Intersect(Ray: TRay; Dist: Single): TNullable<TIntersection>;
+function AabbIntersect(Shpe: TShape; Ray: TRay; Dist: Single): TNullable<TIntersection>;
 var
   VMin, VMax: Single;
   TMin, TMax: Single;
   d: Single;
   intsct: TNullable<TIntersection>;
-  shpe: TShape;
   indx: Word;
 begin
   Result := Default (TNullable<TIntersection>);
 
-  VMin := (PMin.X - Ray.org.X) * Ray.invDir.X;
-  VMax := (PMax.X - Ray.org.X) * Ray.invDir.X;
+  VMin := (Shpe.PMin.X - Ray.org.X) * Ray.invDir.X;
+  VMax := (Shpe.PMax.X - Ray.org.X) * Ray.invDir.X;
   TMin := Min(VMin, VMax);
   TMax := Max(VMin, VMax);
 
   if (TMax < TMin) or (TMax < 0) or (TMin > Dist) then
     Exit;
 
-  VMin := (PMin.Y - Ray.org.Y) * Ray.invDir.Y;
-  VMax := (PMax.Y - Ray.org.Y) * Ray.invDir.Y;
+  VMin := (Shpe.PMin.Y - Ray.org.Y) * Ray.invDir.Y;
+  VMax := (Shpe.PMax.Y - Ray.org.Y) * Ray.invDir.Y;
   TMin := Max(TMin, Min(VMin, VMax));
   TMax := Min(TMax, Max(VMin, VMax));
 
   if (TMax < TMin) or (TMax < 0) or (TMin > Dist) then
     Exit;
 
-  VMin := (PMin.W - Ray.org.W) * Ray.invDir.W;
-  VMax := (PMax.W - Ray.org.W) * Ray.invDir.W;
+  VMin := (Shpe.PMin.W - Ray.org.W) * Ray.invDir.W;
+  VMax := (Shpe.PMax.W - Ray.org.W) * Ray.invDir.W;
   TMin := Max(TMin, Min(VMin, VMax));
   TMax := Min(TMax, Max(VMin, VMax));
 
@@ -255,10 +235,9 @@ begin
 
   d := Dist;
   indx := 0;
-  while indx < shps.Count do
+  while indx < Shpe.shps.Count do
   begin
-    shpe := shps[indx];
-    intsct := shpe.Intersect(Ray, d);
+    intsct := Shpe.shps[indx].Intersect(Ray, d);
     if intsct.HasValue and (intsct.Value.d < d) then
     begin
       d := intsct.Value.d;
@@ -275,6 +254,28 @@ constructor TBounds.Create(PMin, PMax: TVector);
 begin
   Self.PMin := PMin;
   Self.PMax := PMax;
+end;
+
+{ TShape }
+
+function TShape.Bound: TBounds;
+begin
+  case kind of
+     Sphr: Result := SphrBound(Self);
+     Plne: Result := PlneBound(Self);
+     Tria: Result := TriaBound(Self);
+     Aabb: Result := AabbBound(Self);
+  end;
+end;
+
+function TShape.Intersect(Ray: TRay; Dist: Single): TNullable<TIntersection>;
+begin
+  case kind of
+     Sphr: Result := SphrIntersect(Self, Ray, Dist);
+     Plne: Result := PlneIntersect(Self, Ray, Dist);
+     Tria: Result := TriaIntersect(Self, Ray, Dist);
+     Aabb: Result := AabbIntersect(Self, Ray, Dist);
+  end;
 end;
 
 end.
