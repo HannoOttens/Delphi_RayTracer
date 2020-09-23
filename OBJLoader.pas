@@ -20,7 +20,7 @@ type
     constructor Create();
   end;
 
-function Rebound(Shps: TList<TShape>): TBounds;
+function Rebound(const Stre: TStore; Shps: TList<TShape>): TBounds;
 function LoadOBJ(fileName: string; ofst: TVector): TShape;
 function SubDevide(DvOn: Word; const PMin, PMax: TVector; shps: TList<TShape>): TShape;
 
@@ -34,7 +34,7 @@ begin
   Self.vn := TList<TVector>.Create;
 end;
 
-function Rebound(Shps: TList<TShape>): TBounds;
+function Rebound(const Stre: TStore; Shps: TList<TShape>): TBounds;
 var
   PMin: TVector;
   PMax: TVector;
@@ -49,7 +49,7 @@ begin
   Indx := 0;
   while Indx < Shps.Count do
   begin
-    Bnds := Shps[Indx].Bound;
+    Bnds := Bound(Stre, Shps[Indx]);
     PMin.X := Min(PMin.X, Bnds.PMin.X);
     PMin.Y := Min(PMin.Y, Bnds.PMin.Y);
     PMin.W := Min(PMin.W, Bnds.PMin.W);
