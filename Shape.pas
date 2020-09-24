@@ -8,7 +8,7 @@ uses Vcl.Graphics, System.Math.Vectors, Ray, Material, Nullable, Intersection,
 type
   TBounds = record
     PMin, PMax: TVector;
-    constructor Create(PMin, PMax: TVector);
+    constructor Create(const PMin, PMax: TVector);
   end;
 
 type
@@ -68,12 +68,12 @@ function AabbCreate(Pdx1, Pdx2, IdxR, IdxL: Word): TShape;
 /// <summary>Find the intersection with a ray</summary>
 /// <param name="Ray">The ray to intesrsect with</param>
 /// <returns>A non-null point after intersection</returns>
-function Intersect(const Stre: TStore; const Shpe: TShape; const Ray: TRay;
+function Intersect(const Stre: TDynStore; const Shpe: TShape; const Ray: TRay;
   const Dist: Single): TNullable<TIntersection>;
 /// <summary>Calculate the bounds of this shape</summary>
 /// <returns>The object bounds</returns>
 // TODO: Only return PMAX, we do not need PMin for splitting the bounds
-function Bound(const Stre: TStore; const Shpe: TShape): TBounds;
+function Bound(const Stre: TDynStore; const Shpe: TShape): TBounds;
 
 implementation
 
@@ -107,7 +107,7 @@ begin
   Result.radSqr := rad * rad;
 end;
 
-function SphrBound(const Stre: TStore; const Shpe: TShape): TBounds;
+function SphrBound(const Stre: TDynStore; const Shpe: TShape): TBounds;
 begin
   // Todo: calculate pointer instead of [] again and again?
   Result := TBounds.Create(
@@ -115,7 +115,7 @@ begin
     Stre.VPos[Shpe.PIdx] + TVector.Create(Shpe.rad, Shpe.rad, Shpe.rad));
 end;
 
-function SphrIntersect(const Stre: TStore; const Shpe: TShape; const Ray: TRay;
+function SphrIntersect(const Stre: TDynStore; const Shpe: TShape; const Ray: TRay;
   const Dist: Single): TNullable<TIntersection>;
 var
   v: TVector;
@@ -157,12 +157,12 @@ begin
   Result.pnrm := norm.Normalize;
 end;
 
-function PlneBound(const Stre: TStore; const shpe: TShape): TBounds;
+function PlneBound(const Stre: TDynStore; const shpe: TShape): TBounds;
 begin
   raise Exception.Create('A plane does not have a finite bounding box');
 end;
 
-function PlneIntersect(const Stre: TStore; const Shpe: TShape; const Ray: TRay;
+function PlneIntersect(const Stre: TDynStore; const Shpe: TShape; const Ray: TRay;
   const Dist: Single): TNullable<TIntersection>;
 var
   cosi, d: Single;
@@ -193,7 +193,7 @@ begin
   Result.Mtrl := Mtrl;
 end;
 
-function TriaBound(const Stre: TStore; const Sphe: TShape): TBounds;
+function TriaBound(const Stre: TDynStore; const Sphe: TShape): TBounds;
   var pos1, pos2, pos3: TVector;
 begin
   pos1 := Stre.VPos[Sphe.PIdx];
@@ -213,7 +213,7 @@ begin
   );
 end;
 
-function TriaIntersect(const Stre: TStore; const Shpe: TShape; const Ray: TRay;
+function TriaIntersect(const Stre: TDynStore; const Shpe: TShape; const Ray: TRay;
   const Dist: Single): TNullable<TIntersection>;
 var
   pHit: TVector;
@@ -262,12 +262,12 @@ begin
   Result.IdxR := IdxL;
 end;
 
-function AabbBound(const Stre: TStore; const Shpe: TShape): TBounds;
+function AabbBound(const Stre: TDynStore; const Shpe: TShape): TBounds;
 begin
   Result := TBounds.Create(Stre.VPos[Shpe.PIdx], Stre.VPos[Shpe.PMax]);
 end;
 
-function AabbIntersect(const Stre: TStore; const Shpe: TShape; const Ray: TRay;
+function AabbIntersect(const Stre: TDynStore; const Shpe: TShape; const Ray: TRay;
   const Dist: Single): TNullable<TIntersection>;
 var
   PMin, PMax: TVector;
@@ -328,7 +328,7 @@ end;
 
 { TBounds }
 
-constructor TBounds.Create(PMin, PMax: TVector);
+constructor TBounds.Create(const PMin, PMax: TVector);
 begin
   Self.PMin := PMin;
   Self.PMax := PMax;
@@ -336,7 +336,7 @@ end;
 
 { TShape }
 
-function Bound(const Stre: TStore; const Shpe: TShape): TBounds;
+function Bound(const Stre: TDynStore; const Shpe: TShape): TBounds;
 begin
   case Shpe.Kind of
      Sphr: Result := SphrBound(Stre, Shpe);
@@ -346,7 +346,7 @@ begin
   end;
 end;
 
-function Intersect(const Stre: TStore; const Shpe: TShape; const Ray: TRay;
+function Intersect(const Stre: TDynStore; const Shpe: TShape; const Ray: TRay;
   const Dist: Single): TNullable<TIntersection>;
 begin
   case Shpe.Kind of

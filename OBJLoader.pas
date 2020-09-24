@@ -20,9 +20,10 @@ type
     constructor Create();
   end;
 
-function Rebound(const Stre: TStore; Shps: TList<TShape>): TBounds;
-function LoadOBJ(fileName: string; ofst: TVector): TShape;
-function SubDevide(DvOn: Word; const PMin, PMax: TVector; shps: TList<TShape>): TShape;
+function Rebound(Stre: TDynStore; Shps: TList<Word>): TBounds;
+function SubDevide(Stre: TDynStore; DvOn: Word; const IMin, IMax: Word;
+  Shps: TList<Word>): Word;
+function LoadOBJ(Stre: TDynStore; fileName: string; const ofst: TVector): Word;
 
 implementation
 
@@ -34,7 +35,7 @@ begin
   Self.vn := TList<TVector>.Create;
 end;
 
-function Rebound(const Stre: TStore; Shps: TList<TShape>): TBounds;
+function Rebound(Stre: TDynStore; Shps: TList<Word>): TBounds;
 var
   PMin: TVector;
   PMax: TVector;
@@ -49,7 +50,7 @@ begin
   Indx := 0;
   while Indx < Shps.Count do
   begin
-    Bnds := Bound(Stre, Shps[Indx]);
+    Bnds := Bound(Stre, Stre.Shps[Shps[Indx]]);
     PMin.X := Min(PMin.X, Bnds.PMin.X);
     PMin.Y := Min(PMin.Y, Bnds.PMin.Y);
     PMin.W := Min(PMin.W, Bnds.PMin.W);
@@ -64,21 +65,33 @@ begin
 end;
 
 { Subdeviding an OBJ }
-function SubDevide(DvOn: Word; const PMin, PMax: TVector; shps: TList<TShape>): TShape;
-var PMdn, PMdx: TVector;
-    ShpL, ShpR, ShpN: TList<TShape>;
-    ObjL, ObjR: TShape;
+function SubDevide(Stre: TDynStore; DvOn: Word; const IMin, IMax: Word;
+  Shps: TList<Word>): Word;
+var PMdn, PMdx, PMin, PMax: TVector;
+    ShpL, ShpR: TList<Word>;
+    IdxL, IdxR: Word;
     Indx: Word;
-    Bund: TBounds;
+    Bnds: TBounds;
 begin
-  // Group objects per 8
-  if shps.Count < 4 then
+  // Base cases
+  if Shps.Count = 1 then
   begin
-    Result := AabbCreate(PMin, PMax, shps);
+    Result := Shps[0];
+    Exit;
+  end else if Shps.Count = 2 then
+  begin
+    Result := Stre.Shps.Add(AabbCreate(IMin, IMax, Shps[0], Shps[1]));
+    Exit;
+  end else if Shps.Count < 128 then
+  begin
+    Result := Stre.Shps.Add(AabbCreate(IMin, IMax, Shps[0], Shps[1]));
     Exit;
   end;
 
+
   // Otherwise split on an axis (DvOn: 0 -> X, 1 -> Y, 2 -> Z)
+  PMin := Stre.VPos[IMin];
+  PMax := Stre.VPos[IMax];
   PMdn := PMax;
   case DvOn of
     0: PMdn.X := (PMin.X + PMax.X) * 0.5;
@@ -93,15 +106,15 @@ begin
   end;
 
   // Divide over the two lists
-  ShpL := TList<TShape>.Create;
-  ShpR := TList<TShape>.Create;
+  ShpL := TList<Word>.Create;
+  ShpR := TList<Word>.Create;
   Indx := 0;
   while Indx < shps.Count do
   begin
-    Bund := shps[Indx].Bound;
-    if ((Bund.PMax.X < PMdn.X) or (DvOn <> 0)) and
-       ((Bund.PMax.Y < PMdn.Y) or (DvOn <> 1)) and
-       ((Bund.PMax.W < PMdn.W) or (DvOn <> 2)) then
+    Bnds := Bound(Stre, Stre.Shps[Shps[Indx]]);
+    if ((Bnds.PMax.X < PMdn.X) or (DvOn <> 0)) and
+       ((Bnds.PMax.Y < PMdn.Y) or (DvOn <> 1)) and
+       ((Bnds.PMax.W < PMdn.W) or (DvOn <> 2)) then
     begin
       ShpL.Add(shps[Indx]);
     end
@@ -115,26 +128,27 @@ begin
 
   if ShpL.Count = 0 then
   begin
-    Result := AabbCreate(PMin, PMax, ShpR);
+    Bnds := Rebound(Stre, ShpR);
+    Result := SubDevide(Stre, DvOn, Stre.VPos.Add(Bnds.PMin), IMax, ShpR);
     Exit;
-  end;
-  if ShpR.Count = 0 then
+  end
+  else if ShpR.Count = 0 then
   begin
-    Result := AabbCreate(PMin, PMax, ShpL);
+    Result := SubDevide(Stre, DvOn, IMin, Stre.VPos.Add(PMdn), ShpL);
     Exit;
+  end
+  else
+  begin
+    // Add new points to store & recurse
+    DvOn := (DvOn + 1) mod 3;
+    IdxL := SubDevide(Stre, DvOn, IMin, Stre.VPos.Add(PMdn), ShpL);
+    Bnds := Rebound(Stre, ShpR);
+    IdxR := SubDevide(Stre, DvOn, Stre.VPos.Add(Bnds.PMin), IMax, ShpR);
+
+    // Add sub-shapes to object
+    Stre.Shps.Add(AabbCreate(IMin, IMax, IdxL, IdxR));
+    Result := Stre.Shps.Count - 1;
   end;
-
-  // Recurse
-  DvOn := (DvOn + 1) mod 3;
-  ObjL := SubDevide(DvOn, PMin, PMdn, ShpL);
-  Bund := Rebound(ShpR);
-  ObjR := SubDevide(DvOn, Bund.PMin, Bund.PMax, ShpR);
-
-  // Add sub-shapes to object
-  ShpN := TList<TShape>.Create;
-  ShpN.Add(ObjL);
-  ShpN.Add(ObjR);
-  Result := AabbCreate(PMin, PMax, ShpN);
 end;
 
 { OBJ File Loader }
@@ -164,20 +178,26 @@ begin
   Result := ObjF.v[vIdx];
 end;
 
-function ParsTria(ObjF: TOBJFile; pos1, pos2, pos3: string): TShape;
+function ParsTria(Stre: TDynStore; ObjF: TOBJFile; pos1, pos2, pos3: string): TShape;
+var IPs1, IPs2, IPs3: Word;
 begin
-  Result := TriaCreate(ParsFIdx(ObjF, pos1), ParsFIdx(ObjF, pos2),
-    ParsFIdx(ObjF, pos3), TMaterial.Create(TVector.Create(244, 244, 244), 0));
+  IPs1 := Stre.VPos.Add(ParsFIdx(ObjF, pos1));
+  IPs2 := Stre.VPos.Add(ParsFIdx(ObjF, pos2));
+  IPs3 := Stre.VPos.Add(ParsFIdx(ObjF, pos3));
+
+  Result := TriaCreate(IPs1, IPs2, IPs3,
+    TMaterial.Create(TVector.Create(244, 244, 244), 0));
 end;
 
-function LoadOBJ(fileName: string; ofst: TVector): TShape;
+function LoadOBJ(Stre: TDynStore; fileName: string; const ofst: TVector): Word;
 var
   PMin, PMax: TVector;
   Vec3: TVector;
   TxtF: TextFile;
   SepL: TStringList;
   ObjF: TOBJFile;
-  shps: TList<TShape>;
+  shps: TList<Word>;
+  SIdx: Word;
   Line: string;
 begin
   AssignFile(TxtF, fileName);
@@ -194,7 +214,7 @@ begin
 
   // Initilize Objects
   SepL := TStringList.Create;
-  shps := TList<TShape>.Create;
+  shps := TList<Word>.Create;
   ObjF := TOBJFile.Create;
 
   // Scan the file
@@ -224,20 +244,21 @@ begin
        2:
         begin
           if SepL[3] = '' then Continue;
+          SIdx := Stre.Shps.Add(ParsTria(Stre, ObjF, SepL[1], SepL[2], SepL[3]));
+          shps.Add(SIdx);
 
-          shps.Add(ParsTria(ObjF, SepL[1], SepL[2], SepL[3]));
+          // Parse 2nd triangle from a quad
           if SepL.Count = 5 then begin
             if SepL[4] = '' then Continue;
-            shps.Add(ParsTria(ObjF, SepL[2], SepL[3], SepL[4]));
+            SIdx := Stre.Shps.Add(ParsTria(Stre, ObjF, SepL[2], SepL[3], SepL[4]));
+            shps.Add(SIdx);
           end;
         end;
        3: Continue;
     end;
   end;
 
-  // Add BB information
-  Result := SubDevide(0, PMin, PMax, shps);
-
+  Result := SubDevide(Stre, 0, Stre.VPos.Add(PMin), Stre.VPos.Add(PMax), shps);
   OBJF.Destroy;
   CloseFile(TxtF);
 end;
