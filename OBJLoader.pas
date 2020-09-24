@@ -20,10 +20,10 @@ type
     constructor Create();
   end;
 
-function Rebound(Stre: TDynStore; Shps: TList<Word>): TBounds;
-function SubDevide(Stre: TDynStore; DvOn: Word; const IMin, IMax: Word;
-  Shps: TList<Word>): Word;
-function LoadOBJ(Stre: TDynStore; fileName: string; const ofst: TVector): Word;
+function Rebound(Stre: TDynStore; Shps: TList<Cardinal>): TBounds;
+function SubDevide(Stre: TDynStore; DvOn: Word; const IMin, IMax: Cardinal;
+  Shps: TList<Cardinal>): Cardinal;
+function LoadOBJ(Stre: TDynStore; fileName: string; const ofst: TVector): Cardinal;
 
 implementation
 
@@ -35,11 +35,11 @@ begin
   Self.vn := TList<TVector>.Create;
 end;
 
-function Rebound(Stre: TDynStore; Shps: TList<Word>): TBounds;
+function Rebound(Stre: TDynStore; Shps: TList<Cardinal>): TBounds;
 var
   PMin: TVector;
   PMax: TVector;
-  Indx: Word;
+  Indx: Cardinal;
   Bnds: TBounds;
 begin
   // Initialize Min/Max values
@@ -65,13 +65,13 @@ begin
 end;
 
 { Subdeviding an OBJ }
-function SubDevide(Stre: TDynStore; DvOn: Word; const IMin, IMax: Word;
-  Shps: TList<Word>): Word;
+function SubDevide(Stre: TDynStore; DvOn: Word; const IMin, IMax: Cardinal;
+  Shps: TList<Cardinal>): Cardinal;
 var
   PMdn, PMdx, PMin, PMax: TVector;
-  ShpL, ShpR: TList<Word>;
-  IdxL, IdxR: Word;
-  Indx: Word;
+  ShpL, ShpR: TList<Cardinal>;
+  IdxL, IdxR: Cardinal;
+  Indx: Cardinal;
   Bnds: TBounds;
 begin
   // Base cases
@@ -109,8 +109,8 @@ begin
   end;
 
   // Divide over the two lists
-  ShpL := TList<Word>.Create;
-  ShpR := TList<Word>.Create;
+  ShpL := TList<Cardinal>.Create;
+  ShpR := TList<Cardinal>.Create;
   Indx := 0;
   while Indx < Shps.Count do
   begin
@@ -125,15 +125,15 @@ begin
     begin
       ShpR.Add(Shps[Indx]);
     end;
-
     Indx := Indx + 1;
   end;
 
+  // Free memory of shps array
+  Shps.Destroy;
+
   if ShpL.Count = 0 then
   begin
-
     Bnds := Rebound(Stre, ShpR);
-//    Result := SubDevide(Stre, DvOn, Stre.VPos.Add(Bnds.PMin), IMax, ShpR);
     Result := Stre.Shps.Add(AabbCreate(Stre.VPos.Add(Bnds.PMin), IMax, ShpR.ToArray));
     Exit;
   end
@@ -167,7 +167,7 @@ end;
 
 function ParsVec3(const ofst: TVector; X, Y, z: string): TVector;
 begin
-  Result := TVector.Create(StrToFloat(X), StrToFloat(z), StrToFloat(Y)) + ofst;
+  Result := TVector.Create(StrToFloat(X), StrToFloat(Y), StrToFloat(z)) + ofst;
 end;
 
 function ParsFIdx(ObjF: TOBJFile; p: string): TVector;
@@ -185,7 +185,7 @@ end;
 function ParsTria(Stre: TDynStore; ObjF: TOBJFile;
   pos1, pos2, pos3: string): TShape;
 var
-  IPs1, IPs2, IPs3: Word;
+  IPs1, IPs2, IPs3: Cardinal;
 begin
   IPs1 := Stre.VPos.Add(ParsFIdx(ObjF, pos1));
   IPs2 := Stre.VPos.Add(ParsFIdx(ObjF, pos2));
@@ -196,15 +196,15 @@ begin
     TMaterial.Create(TVector.Create(244, 244, 244), 0));
 end;
 
-function LoadOBJ(Stre: TDynStore; fileName: string; const ofst: TVector): Word;
+function LoadOBJ(Stre: TDynStore; fileName: string; const ofst: TVector): Cardinal;
 var
   PMin, PMax: TVector;
   Vec3: TVector;
   TxtF: TextFile;
   SepL: TStringList;
   ObjF: TOBJFile;
-  Shps: TList<Word>;
-  SIdx: Word;
+  Shps: TList<Cardinal>;
+  SIdx: Cardinal;
   Line: string;
 begin
   AssignFile(TxtF, fileName);
@@ -221,7 +221,7 @@ begin
 
   // Initilize Objects
   SepL := TStringList.Create;
-  Shps := TList<Word>.Create;
+  Shps := TList<Cardinal>.Create;
   ObjF := TOBJFile.Create;
 
   // Scan the file
@@ -262,8 +262,8 @@ begin
           begin
             if SepL[4] = '' then
               Continue;
-            SIdx := Stre.Shps.Add(ParsTria(Stre, ObjF, SepL[2], SepL[3],
-              SepL[4]));
+            SIdx := Stre.Shps.Add(ParsTria(Stre, ObjF, SepL[3], SepL[4],
+              SepL[1]));
             Shps.Add(SIdx);
           end;
         end;

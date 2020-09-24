@@ -169,7 +169,7 @@ end;
 function LightIntersect(Stre: TDynStore; Scene: TScene; lr: TRay; ld: Single): Boolean;
 var
   intsct: TNullable<TIntersection>;
-  I: Word;
+  I: Cardinal;
 begin
   Result := False;
 
@@ -287,14 +287,15 @@ procedure TForm1.Button1Click(Sender: TObject);
 var
   cam: TCamera;
   Scene: TScene;
-  xMax, yMax, tIdx, PIdx, SIdx: Word;
+  xMax, yMax, tIdx: Word;
+  PIdx, SIdx: Cardinal;
   img: TImage;
   tArr: TThreads;
   Bnds: TBounds;
   Stre: TDynStore;
 begin
   // Define scene
-  Scene := TScene.Create(TList<Word>.Create, TList<TLight>.Create);
+  Scene := TScene.Create(TList<Cardinal>.Create, TList<TLight>.Create);
 
   // Initialize store
   Stre := TDynStore.Create;
@@ -321,17 +322,17 @@ begin
   Scene.shapes.Add(SIdx);
 
   // Add objs
-  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\cow.obj',
-    TVector.Create(0, 30, 0)));
+  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\horse.obj',
+    TVector.Create(0, 300, -40)));
   Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\teapot.obj',
-    TVector.Create(0.2, 40, 3)));
+    TVector.Create(10, 40, 3)));
 
-//  // Octree scene
-//  Bnds := Rebound(Stre, Scene.shapes);
-//  SIdx := SubDevide(Stre, 0, Stre.VPos.Add(Bnds.PMin), Stre.VPos.Add(Bnds.PMax),
-//    Scene.shapes);
-//  Scene.shapes := TList<Word>.Create();
-//  Scene.shapes.Add(SIdx);
+  // Octree scene
+  Bnds := Rebound(Stre, Scene.shapes);
+  SIdx := SubDevide(Stre, 0, Stre.VPos.Add(Bnds.PMin), Stre.VPos.Add(Bnds.PMax),
+    Scene.shapes);
+  Scene.shapes := TList<Cardinal>.Create();
+  Scene.shapes.Add(SIdx);
 
   // Add lights
   Scene.ligths.Add(TLight.Create(TVector.Create(-2, 0, 10), TVector.Create(255,

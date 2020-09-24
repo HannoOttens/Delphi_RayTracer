@@ -17,16 +17,16 @@ type
   TShape = record
   public
     Kind: EShape;
-    PIdx: Word;
+    PIdx: Cardinal;
     Mtrl: TMaterial;
 
-    Shps: TArray<Word>; // Used for AAABBs
+    Shps: TArray<Cardinal>; // Used for AAABBs
 
     Case EShape of
       Sphr: (rad, radSqr: Single);
       Plne: (PNrm: TVector);
-      Tria: (TNrm: TVector; Pdx2, Pdx3: Word);
-      Aabb: (PMax: Word);
+      Tria: (TNrm: TVector; Pdx2, Pdx3: Cardinal);
+      Aabb: (PMax: Cardinal);
   end;
 
 type
@@ -62,10 +62,10 @@ type
   end;
 
 
-function SphrCreate(PIdx: Word; rad: Single;   Mtrl: TMaterial): TShape;
-function PlneCreate(PIdx: Word; norm: TVector; Mtrl: TMaterial): TShape;
-function TriaCreate(Pdx1, Pdx2, Pdx3: Word; Nrml: TVector; Mtrl: TMaterial): TShape;
-function AabbCreate(Pdx1, Pdx2: Word; Shps: TArray<Word>): TShape;
+function SphrCreate(PIdx: Cardinal; rad: Single;   Mtrl: TMaterial): TShape;
+function PlneCreate(PIdx: Cardinal; norm: TVector; Mtrl: TMaterial): TShape;
+function TriaCreate(Pdx1, Pdx2, Pdx3: Cardinal; Nrml: TVector; Mtrl: TMaterial): TShape;
+function AabbCreate(Pdx1, Pdx2: Cardinal; Shps: TArray<Cardinal>): TShape;
 
 /// <summary>Find the intersection with a ray</summary>
 /// <param name="Ray">The ray to intesrsect with</param>
@@ -100,7 +100,7 @@ end;
 
 { TShpere }
 
-function SphrCreate(PIdx: Word; rad: Single; Mtrl: TMaterial): TShape;
+function SphrCreate(PIdx: Cardinal; rad: Single; Mtrl: TMaterial): TShape;
 begin
   Result.Kind := EShape.Sphr;
   Result.PIdx := PIdx;
@@ -151,7 +151,7 @@ end;
 
 { TPlane }
 
-function PlneCreate(PIdx: Word; norm: TVector; Mtrl: TMaterial): TShape;
+function PlneCreate(PIdx: Cardinal; norm: TVector; Mtrl: TMaterial): TShape;
 begin
   Result.kind := EShape.Plne;
   Result.Mtrl := Mtrl;
@@ -190,7 +190,7 @@ end;
 
 { TTraingle }
 
-function TriaCreate(Pdx1, Pdx2, Pdx3: Word; Nrml: TVector; Mtrl: TMaterial): TShape;
+function TriaCreate(Pdx1, Pdx2, Pdx3: Cardinal; Nrml: TVector; Mtrl: TMaterial): TShape;
 begin
   Result.kind := EShape.Tria;
   Result.PIdx := Pdx1;
@@ -263,7 +263,7 @@ end;
 
 { TAabb }
 
-function AabbCreate(Pdx1, Pdx2: Word; Shps: TArray<Word>): TShape;
+function AabbCreate(Pdx1, Pdx2: Cardinal; Shps: TArray<Cardinal>): TShape;
 begin
   Result.Kind := EShape.Aabb;
   Result.PIdx := Pdx1;
@@ -284,7 +284,7 @@ var
   TMin, TMax: Single;
   d: Single;
   intsct: TNullable<TIntersection>;
-  indx: Word;
+  indx: Cardinal;
 begin
   Result := Default (TNullable<TIntersection>);
 
