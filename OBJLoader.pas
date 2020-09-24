@@ -78,13 +78,9 @@ begin
   begin
     Result := Shps[0];
     Exit;
-  end else if Shps.Count = 2 then
-  begin
-    Result := Stre.Shps.Add(AabbCreate(IMin, IMax, Shps[0], Shps[1]));
-    Exit;
   end else if Shps.Count < 128 then
   begin
-    Result := Stre.Shps.Add(AabbCreate(IMin, IMax, Shps[0], Shps[1]));
+    Result := Stre.Shps.Add(AabbCreate(IMin, IMax, Shps.ToArray));
     Exit;
   end;
 
@@ -146,7 +142,7 @@ begin
     IdxR := SubDevide(Stre, DvOn, Stre.VPos.Add(Bnds.PMin), IMax, ShpR);
 
     // Add sub-shapes to object
-    Stre.Shps.Add(AabbCreate(IMin, IMax, IdxL, IdxR));
+    Stre.Shps.Add(AabbCreate(IMin, IMax, [IdxL, IdxR]));
     Result := Stre.Shps.Count - 1;
   end;
 end;
@@ -186,6 +182,7 @@ begin
   IPs3 := Stre.VPos.Add(ParsFIdx(ObjF, pos3));
 
   Result := TriaCreate(IPs1, IPs2, IPs3,
+    (Stre.VPos[IPs2] - Stre.VPos[IPs1]).CrossProduct(Stre.VPos[IPs3] - Stre.VPos[IPs2]),
     TMaterial.Create(TVector.Create(244, 244, 244), 0));
 end;
 

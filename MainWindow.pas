@@ -245,16 +245,15 @@ begin
         hit.Value.normal, lv, InvVec3(lv), 0), ld) then
       begin
         // Diffuse light
-        attn := 1 / (ld * ld);
-        pow := Min(1, Max(0, lv.DotProduct(hit.Value.normal) * attn *
-          Scene.ligths[I].pow));
+        attn := Scene.ligths[I].pow / (ld * ld);
+        pow := Min(1, Max(0, lv.DotProduct(hit.Value.normal) * attn));
         col := col + pow * hit.Value.mat.color *
           (1.0 - hit.Value.mat.reflective);
 
         // Specular light
         s := lv - 2.0 * lv.DotProduct(hit.Value.normal) * hit.Value.normal;
         col := col + PowInt(Max(Ray.dir.DotProduct(s), 0), 200) * Scene.ligths
-          [I].lum * 0.5;
+          [I].lum * attn;
       end;
     end;
 

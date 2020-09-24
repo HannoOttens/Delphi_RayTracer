@@ -20,11 +20,13 @@ type
     PIdx: Word;
     Mtrl: TMaterial;
 
+    Shps: TArray<Word>; // Used for AAABBs
+
     Case EShape of
       Sphr: (rad, radSqr: Single);
       Plne: (PNrm: TVector);
       Tria: (TNrm: TVector; Pdx2, Pdx3: Word);
-      Aabb: (PMax, IdxR, IdxL: Word);
+      Aabb: (PMax: Word);
   end;
 
 type
@@ -62,8 +64,8 @@ type
 
 function SphrCreate(PIdx: Word; rad: Single;   Mtrl: TMaterial): TShape;
 function PlneCreate(PIdx: Word; norm: TVector; Mtrl: TMaterial): TShape;
-function TriaCreate(Pdx1, Pdx2, Pdx3: Word;    Mtrl: TMaterial): TShape;
-function AabbCreate(Pdx1, Pdx2, IdxR, IdxL: Word): TShape;
+function TriaCreate(Pdx1, Pdx2, Pdx3: Word; Nrml: TVector; Mtrl: TMaterial): TShape;
+function AabbCreate(Pdx1, Pdx2: Word; Shps: TArray<Word>): TShape;
 
 /// <summary>Find the intersection with a ray</summary>
 /// <param name="Ray">The ray to intesrsect with</param>
@@ -170,9 +172,13 @@ begin
   Result := Default (TNullable<TIntersection>);
 
   cosi := Ray.dir.DotProduct(Shpe.pnrm);
+
+  if (cosi = 0) then Exit;
+  
+
   d := (Stre.VPos[Shpe.PIdx] - Ray.org).DotProduct(Shpe.pnrm) / cosi;
 
-  if (d > dist) or (d < 0) or (cosi = 0) then
+  if (d > dist) or (d < 0) then
     Exit;
 
   Result.Value := TIntersection.Create();
@@ -184,13 +190,14 @@ end;
 
 { TTraingle }
 
-function TriaCreate(Pdx1, Pdx2, Pdx3: Word; Mtrl: TMaterial): TShape;
+function TriaCreate(Pdx1, Pdx2, Pdx3: Word; Nrml: TVector; Mtrl: TMaterial): TShape;
 begin
   Result.kind := EShape.Tria;
   Result.PIdx := Pdx1;
   Result.Pdx2 := Pdx2;
   Result.Pdx3 := Pdx3;
   Result.Mtrl := Mtrl;
+  Result.TNrm := Nrml.Normalize;
 end;
 
 function TriaBound(const Stre: TDynStore; const Sphe: TShape): TBounds;
@@ -227,11 +234,14 @@ begin
   pos3 := Stre.VPos[Shpe.Pdx3];
 
   cosi := Ray.dir.DotProduct(Shpe.tnrm);
+
+  // Parralel to the plane
+  if (cosi = 0) then Exit;
+
   d := (pos1 - Ray.org).DotProduct(Shpe.tnrm) / cosi;
 
   // Dit not hit plane traingle lies in
-  if (d > Dist) or (d < 0) or (cosi = 0) then
-    Exit;
+  if (d > Dist) or (d < 0) then Exit;
 
   pHit := Ray.org + d * Ray.dir;
   w := Shpe.tnrm.DotProduct((pos2 - pos1).CrossProduct(pHit - pos1));
@@ -253,13 +263,12 @@ end;
 
 { TAabb }
 
-function AabbCreate(Pdx1, Pdx2, IdxR, IdxL: Word): TShape;
+function AabbCreate(Pdx1, Pdx2: Word; Shps: TArray<Word>): TShape;
 begin
   Result.Kind := EShape.Aabb;
   Result.PIdx := Pdx1;
   Result.PMax := Pdx2;
-  Result.IdxR := IdxR;
-  Result.IdxR := IdxL;
+  Result.Shps := Shps;
 end;
 
 function AabbBound(const Stre: TDynStore; const Shpe: TShape): TBounds;
@@ -308,21 +317,15 @@ begin
 
   d := Dist;
   indx := 0;
-
-  // Intersect L
-  intsct := Intersect(Stre, Stre.Shps[Shpe.IdxL], Ray, d);
-  if intsct.HasValue and (intsct.Value.d < d) then
+  while indx < Length(Shpe.Shps) do
   begin
-    d := intsct.Value.d;
-    Result := intsct;
-  end;
-
-  // Intersect R
-  intsct := Intersect(Stre, Stre.Shps[Shpe.IdxR], Ray, d);
-  if intsct.HasValue and (intsct.Value.d < d) then
-  begin
-    d := intsct.Value.d;
-    Result := intsct;
+    intsct := Intersect(Stre, Stre.Shps[Shpe.Shps[indx]], Ray, d);
+    if intsct.HasValue and (intsct.Value.d < d) then
+    begin
+      d := intsct.Value.d;
+      Result := intsct;
+    end;
+    indx := indx + 1;
   end;
 end;
 
