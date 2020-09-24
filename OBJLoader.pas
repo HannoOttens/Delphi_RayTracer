@@ -67,56 +67,63 @@ end;
 { Subdeviding an OBJ }
 function SubDevide(Stre: TDynStore; DvOn: Word; const IMin, IMax: Word;
   Shps: TList<Word>): Word;
-var PMdn, PMdx, PMin, PMax: TVector;
-    ShpL, ShpR: TList<Word>;
-    IdxL, IdxR: Word;
-    Indx: Word;
-    Bnds: TBounds;
+var
+  PMdn, PMdx, PMin, PMax: TVector;
+  ShpL, ShpR: TList<Word>;
+  IdxL, IdxR: Word;
+  Indx: Word;
+  Bnds: TBounds;
 begin
   // Base cases
   if Shps.Count = 1 then
   begin
     Result := Shps[0];
     Exit;
-  end else if Shps.Count < 128 then
+  end;
+  if Shps.Count < 8 then
   begin
     Result := Stre.Shps.Add(AabbCreate(IMin, IMax, Shps.ToArray));
     Exit;
   end;
-
 
   // Otherwise split on an axis (DvOn: 0 -> X, 1 -> Y, 2 -> Z)
   PMin := Stre.VPos[IMin];
   PMax := Stre.VPos[IMax];
   PMdn := PMax;
   case DvOn of
-    0: PMdn.X := (PMin.X + PMax.X) * 0.5;
-    1: PMdn.Y := (PMin.Y + PMax.Y) * 0.5;
-    2: PMdn.W := (PMin.W + PMax.W) * 0.5;
+    0:
+      PMdn.X := (PMin.X + PMax.X) * 0.5;
+    1:
+      PMdn.Y := (PMin.Y + PMax.Y) * 0.5;
+    2:
+      PMdn.W := (PMin.W + PMax.W) * 0.5;
   end;
   PMdx := PMin;
   case DvOn of
-    0: PMdx.X := (PMin.X + PMax.X) * 0.5;
-    1: PMdx.Y := (PMin.Y + PMax.Y) * 0.5;
-    2: PMdx.W := (PMin.W + PMax.W) * 0.5;
+    0:
+      PMdx.X := (PMin.X + PMax.X) * 0.5;
+    1:
+      PMdx.Y := (PMin.Y + PMax.Y) * 0.5;
+    2:
+      PMdx.W := (PMin.W + PMax.W) * 0.5;
   end;
 
   // Divide over the two lists
   ShpL := TList<Word>.Create;
   ShpR := TList<Word>.Create;
   Indx := 0;
-  while Indx < shps.Count do
+  while Indx < Shps.Count do
   begin
     Bnds := Bound(Stre, Stre.Shps[Shps[Indx]]);
     if ((Bnds.PMax.X < PMdn.X) or (DvOn <> 0)) and
-       ((Bnds.PMax.Y < PMdn.Y) or (DvOn <> 1)) and
-       ((Bnds.PMax.W < PMdn.W) or (DvOn <> 2)) then
+      ((Bnds.PMax.Y < PMdn.Y) or (DvOn <> 1)) and
+      ((Bnds.PMax.W < PMdn.W) or (DvOn <> 2)) then
     begin
-      ShpL.Add(shps[Indx]);
+      ShpL.Add(Shps[Indx]);
     end
     else
     begin
-      ShpR.Add(shps[Indx]);
+      ShpR.Add(Shps[Indx]);
     end;
 
     Indx := Indx + 1;
@@ -124,13 +131,15 @@ begin
 
   if ShpL.Count = 0 then
   begin
+
     Bnds := Rebound(Stre, ShpR);
-    Result := SubDevide(Stre, DvOn, Stre.VPos.Add(Bnds.PMin), IMax, ShpR);
+//    Result := SubDevide(Stre, DvOn, Stre.VPos.Add(Bnds.PMin), IMax, ShpR);
+    Result := Stre.Shps.Add(AabbCreate(Stre.VPos.Add(Bnds.PMin), IMax, ShpR.ToArray));
     Exit;
   end
   else if ShpR.Count = 0 then
   begin
-    Result := SubDevide(Stre, DvOn, IMin, Stre.VPos.Add(PMdn), ShpL);
+    Result := Stre.Shps.Add(AabbCreate(IMin, Stre.VPos.Add(PMdn), ShpL.ToArray));
     Exit;
   end
   else
@@ -142,8 +151,7 @@ begin
     IdxR := SubDevide(Stre, DvOn, Stre.VPos.Add(Bnds.PMin), IMax, ShpR);
 
     // Add sub-shapes to object
-    Stre.Shps.Add(AabbCreate(IMin, IMax, [IdxL, IdxR]));
-    Result := Stre.Shps.Count - 1;
+    Result := Stre.Shps.Add(AabbCreate(IMin, IMax, [IdxL, IdxR]));
   end;
 end;
 
@@ -157,9 +165,9 @@ begin
   ListOfStrings.DelimitedText := Str;
 end;
 
-function ParsVec3(const ofst: TVector; x, y, z: string): TVector;
+function ParsVec3(const ofst: TVector; X, Y, z: string): TVector;
 begin
-  Result := TVector.Create(StrToFloat(x), StrToFloat(z), StrToFloat(y)) + ofst;
+  Result := TVector.Create(StrToFloat(X), StrToFloat(z), StrToFloat(Y)) + ofst;
 end;
 
 function ParsFIdx(ObjF: TOBJFile; p: string): TVector;
@@ -174,15 +182,17 @@ begin
   Result := ObjF.v[vIdx];
 end;
 
-function ParsTria(Stre: TDynStore; ObjF: TOBJFile; pos1, pos2, pos3: string): TShape;
-var IPs1, IPs2, IPs3: Word;
+function ParsTria(Stre: TDynStore; ObjF: TOBJFile;
+  pos1, pos2, pos3: string): TShape;
+var
+  IPs1, IPs2, IPs3: Word;
 begin
   IPs1 := Stre.VPos.Add(ParsFIdx(ObjF, pos1));
   IPs2 := Stre.VPos.Add(ParsFIdx(ObjF, pos2));
   IPs3 := Stre.VPos.Add(ParsFIdx(ObjF, pos3));
 
-  Result := TriaCreate(IPs1, IPs2, IPs3,
-    (Stre.VPos[IPs2] - Stre.VPos[IPs1]).CrossProduct(Stre.VPos[IPs3] - Stre.VPos[IPs2]),
+  Result := TriaCreate(IPs1, IPs2, IPs3, (Stre.VPos[IPs2] - Stre.VPos[IPs1])
+    .CrossProduct(Stre.VPos[IPs3] - Stre.VPos[IPs2]),
     TMaterial.Create(TVector.Create(244, 244, 244), 0));
 end;
 
@@ -193,7 +203,7 @@ var
   TxtF: TextFile;
   SepL: TStringList;
   ObjF: TOBJFile;
-  shps: TList<Word>;
+  Shps: TList<Word>;
   SIdx: Word;
   Line: string;
 begin
@@ -206,12 +216,12 @@ begin
     end;
   end;
   // Initialize Min/Max values
-  PMin := TVector.Create(10000000,10000000,10000000);
-  PMax := TVector.Create(-10000000,-10000000,-10000000);
+  PMin := TVector.Create(10000000, 10000000, 10000000);
+  PMax := TVector.Create(-10000000, -10000000, -10000000);
 
   // Initilize Objects
   SepL := TStringList.Create;
-  shps := TList<Word>.Create;
+  Shps := TList<Word>.Create;
   ObjF := TOBJFile.Create;
 
   // Scan the file
@@ -221,7 +231,8 @@ begin
     Split(' ', Line, SepL);
 
     // Skip lines and polys larger than 4
-    if (SepL.Count < 4) or (SepL.Count > 6)  then Continue;
+    if (SepL.Count < 4) or (SepL.Count > 6) then
+      Continue;
 
     case IndexStr(SepL[0], ['v', 'vn', 'f', '#']) of
       0:
@@ -230,33 +241,39 @@ begin
           ObjF.v.Add(Vec3);
 
           // BB scaling
-          PMin.X := Min(PMin.X, Vec3.x);
-          PMin.Y := Min(PMin.Y, Vec3.y);
-          PMin.W := Min(PMin.W, Vec3.w);
-          PMax.X := Max(PMax.X, Vec3.x);
-          PMax.Y := Max(PMax.Y, Vec3.y);
-          PMax.W := Max(PMax.W, Vec3.w);
+          PMin.X := Min(PMin.X, Vec3.X);
+          PMin.Y := Min(PMin.Y, Vec3.Y);
+          PMin.W := Min(PMin.W, Vec3.W);
+          PMax.X := Max(PMax.X, Vec3.X);
+          PMax.Y := Max(PMax.Y, Vec3.Y);
+          PMax.W := Max(PMax.W, Vec3.W);
         end;
-       //1: ObjF.vn.Add(ParsVec3(TVector.Zero, SepL[1], SepL[2], SepL[3]));
-       2:
+      // 1: ObjF.vn.Add(ParsVec3(TVector.Zero, SepL[1], SepL[2], SepL[3]));
+      2:
         begin
-          if SepL[3] = '' then Continue;
-          SIdx := Stre.Shps.Add(ParsTria(Stre, ObjF, SepL[1], SepL[2], SepL[3]));
-          shps.Add(SIdx);
+          if SepL[3] = '' then
+            Continue;
+          SIdx := Stre.Shps.Add(ParsTria(Stre, ObjF, SepL[1], SepL[2],
+            SepL[3]));
+          Shps.Add(SIdx);
 
           // Parse 2nd triangle from a quad
-          if SepL.Count = 5 then begin
-            if SepL[4] = '' then Continue;
-            SIdx := Stre.Shps.Add(ParsTria(Stre, ObjF, SepL[2], SepL[3], SepL[4]));
-            shps.Add(SIdx);
+          if SepL.Count = 5 then
+          begin
+            if SepL[4] = '' then
+              Continue;
+            SIdx := Stre.Shps.Add(ParsTria(Stre, ObjF, SepL[2], SepL[3],
+              SepL[4]));
+            Shps.Add(SIdx);
           end;
         end;
-       3: Continue;
+      3:
+        Continue;
     end;
   end;
 
-  Result := SubDevide(Stre, 0, Stre.VPos.Add(PMin), Stre.VPos.Add(PMax), shps);
-  OBJF.Destroy;
+  Result := SubDevide(Stre, 0, Stre.VPos.Add(PMin), Stre.VPos.Add(PMax), Shps);
+  ObjF.Destroy;
   CloseFile(TxtF);
 end;
 
