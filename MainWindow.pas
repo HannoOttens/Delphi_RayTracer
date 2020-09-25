@@ -17,7 +17,9 @@ type
     PaintBox1: TPaintBox;
     Button1: TButton;
     Label1: TLabel;
+    Button2: TButton;
     procedure Button1Click(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
   end;
 
 type
@@ -49,6 +51,7 @@ type
 
 var
   Form1: TForm1;
+  img: TImage;
 
 implementation
 
@@ -289,7 +292,6 @@ var
   Scene: TScene;
   xMax, yMax, tIdx: Word;
   PIdx, SIdx: Cardinal;
-  img: TImage;
   tArr: TThreads;
   Bnds: TBounds;
   Stre: TDynStore;
@@ -301,38 +303,42 @@ begin
   Stre := TDynStore.Create;
 
   // Add shapes
-  PIdx := Stre.VPos.Add(TVector.Create(6, 30, -2));
-  SIdx := Stre.Shps.Add(SphrCreate(PIdx, 2, TMaterial.Create(TVector.Create(0,
-    255, 255), 0)));
-  Scene.shapes.Add(SIdx);
-
-  PIdx := Stre.VPos.Add(TVector.Create(-8, 35, 0));
-  SIdx := Stre.Shps.Add(SphrCreate(PIdx, 3, TMaterial.Create(TVector.Create(0,
-    255, 0), 0.5)));
-  Scene.shapes.Add(SIdx);
-
-  PIdx := Stre.VPos.Add(TVector.Create(0, 28, -3));
-  SIdx := Stre.Shps.Add(SphrCreate(PIdx, 2, TMaterial.Create(TVector.Create(255,
-    0, 0), 0)));
-  Scene.shapes.Add(SIdx);
-
-  PIdx := Stre.VPos.Add(TVector.Create(1, 26, 1));
-  SIdx := Stre.Shps.Add(SphrCreate(PIdx, 0.5,
-    TMaterial.Create(TVector.Create(255, 255, 0), 0)));
-  Scene.shapes.Add(SIdx);
+//  PIdx := Stre.VPos.Add(TVector.Create(6, 30, -2));
+//  SIdx := Stre.Shps.Add(SphrCreate(PIdx, 2, TMaterial.Create(TVector.Create(0,
+//    255, 255), 0)));
+//  Scene.shapes.Add(SIdx);
+//
+//  PIdx := Stre.VPos.Add(TVector.Create(-8, 35, 0));
+//  SIdx := Stre.Shps.Add(SphrCreate(PIdx, 3, TMaterial.Create(TVector.Create(0,
+//    255, 0), 0.5)));
+//  Scene.shapes.Add(SIdx);
+//
+//  PIdx := Stre.VPos.Add(TVector.Create(0, 28, -3));
+//  SIdx := Stre.Shps.Add(SphrCreate(PIdx, 2, TMaterial.Create(TVector.Create(255,
+//    0, 0), 0)));
+//  Scene.shapes.Add(SIdx);
+//
+//  PIdx := Stre.VPos.Add(TVector.Create(1, 26, 1));
+//  SIdx := Stre.Shps.Add(SphrCreate(PIdx, 0.5,
+//    TMaterial.Create(TVector.Create(255, 255, 0), 0)));
+//  Scene.shapes.Add(SIdx);
 
   // Add objs
-  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\horse.obj',
-    TVector.Create(0, 300, -40)));
-  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\teapot.obj',
-    TVector.Create(10, 40, 3)));
+  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\house.obj',
+    TVector.Create(-10, 50, -5)));
+//  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\horse.obj',
+//    TVector.Create(0, 300, -40)));
+//  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\teapot.obj',
+//    TVector.Create(10, 40, 3)));
+//  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\cow.obj',
+//    TVector.Create(10, 40, 3)));
 
-  // Octree scene
-  Bnds := Rebound(Stre, Scene.shapes);
-  SIdx := SubDevide(Stre, 0, Stre.VPos.Add(Bnds.PMin), Stre.VPos.Add(Bnds.PMax),
-    Scene.shapes);
-  Scene.shapes := TList<Cardinal>.Create();
-  Scene.shapes.Add(SIdx);
+//  // Octree scene
+//  Bnds := Rebound(Stre, Scene.shapes);
+//  SIdx := SubDevide(Stre, 0, Stre.VPos.Add(Bnds.PMin), Stre.VPos.Add(Bnds.PMax),
+//    Scene.shapes);
+//  Scene.shapes := TList<Cardinal>.Create();
+//  Scene.shapes.Add(SIdx);
 
   // Add lights
   Scene.ligths.Add(TLight.Create(TVector.Create(-2, 0, 10), TVector.Create(255,
@@ -389,6 +395,26 @@ begin
     x := x + 1;
   end;
   inherited;
+end;
+
+procedure TForm1.Button2Click(Sender: TObject);
+var xMax, yMax, x, y: Word;
+begin
+  xMax := Form1.PaintBox1.Width;
+  yMax := Form1.PaintBox1.Height;
+
+  // Copy pixels
+  x := 0;
+  while x < xMax do
+  begin
+    y := 0;
+    while y < yMax do
+    begin
+      Form1.PaintBox1.Canvas.Pixels[x, y] := img[x, y];
+      y := y + 1;
+    end;
+    x := x + 1;
+  end;
 end;
 
 end.
