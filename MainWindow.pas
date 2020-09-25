@@ -354,9 +354,9 @@ begin
 
   // Create threads
   tIdx := 0;
-  while tIdx < 8 do
+  while tIdx < 7 do
   begin
-    tArr[tIdx] := TRayTraceThread.Create(img, xMax, yMax, tIdx, 8, cam,
+    tArr[tIdx] := TRayTraceThread.Create(img, xMax, yMax, tIdx, 7, cam,
       Stre, Scene);
     tIdx := tIdx + 1;
   end;
