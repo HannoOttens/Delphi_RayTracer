@@ -37,7 +37,7 @@ type
   end;
 
 type
-  TThreads = array [0 .. 7] of TRayTraceThread;
+  TThreads = array [0 .. 6] of TRayTraceThread;
 
 type
   TMainTaskThread = class(TThread)
@@ -102,7 +102,7 @@ begin
   time := GetTickCount;
 
   tIdx := 0;
-  while tIdx < 8 do
+  while tIdx < Length(threads) do
   begin
     threads[tIdx].WaitFor;
     tIdx := tIdx + 1;
@@ -354,9 +354,9 @@ begin
 
   // Create threads
   tIdx := 0;
-  while tIdx < 7 do
+  while tIdx < Length(tArr) do
   begin
-    tArr[tIdx] := TRayTraceThread.Create(img, xMax, yMax, tIdx, 7, cam,
+    tArr[tIdx] := TRayTraceThread.Create(img, xMax, yMax, tIdx, Length(tArr), cam,
       Stre, Scene);
     tIdx := tIdx + 1;
   end;
