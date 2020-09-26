@@ -10,7 +10,9 @@ uses
   Generics.Collections,
   Shape,
   Material,
-  Math;
+  Math,
+  Utils,
+  MTLLoader;
 
 type
   TOBJFile = class
@@ -157,19 +159,6 @@ end;
 
 { OBJ File Loader }
 
-procedure Split(Delimiter: Char; Str: string; ListOfStrings: TStrings);
-begin
-  ListOfStrings.Clear;
-  ListOfStrings.Delimiter := Delimiter;
-  ListOfStrings.StrictDelimiter := True;
-  ListOfStrings.DelimitedText := Str;
-end;
-
-function ParsVec3(const ofst: TVector; X, Y, z: string): TVector;
-begin
-  Result := TVector.Create(StrToFloat(X), StrToFloat(Y), StrToFloat(z)) + ofst;
-end;
-
 function ParsFIdx(ObjF: TOBJFile; p: string): TVector;
 var
   SepL: TStringList;
@@ -183,7 +172,7 @@ begin
 end;
 
 function ParsTria(Stre: TDynStore; ObjF: TOBJFile;
-  pos1, pos2, pos3: string): TShape;
+  pos1, pos2, pos3: string; Mtrl: TMaterial): TShape;
 var
   IPs1, IPs2, IPs3: Cardinal;
 begin
@@ -192,8 +181,7 @@ begin
   IPs3 := Stre.VPos.Add(ParsFIdx(ObjF, pos3));
 
   Result := TriaCreate(IPs1, IPs2, IPs3, (Stre.VPos[IPs2] - Stre.VPos[IPs1])
-    .CrossProduct(Stre.VPos[IPs3] - Stre.VPos[IPs2]),
-    TMaterial.Create(TVector.Create(244, 244, 244), 0));
+    .CrossProduct(Stre.VPos[IPs3] - Stre.VPos[IPs2]), Mtrl);
 end;
 
 function LoadOBJ(Stre: TDynStore; fileName: string; const ofst: TVector): Cardinal;
@@ -206,6 +194,8 @@ var
   Shps: TList<Cardinal>;
   SIdx: Cardinal;
   Line: string;
+  Mtls: TDictionary<string, TMaterial>;
+  CMtl: TMaterial;
 begin
   AssignFile(TxtF, fileName);
   begin
@@ -223,6 +213,7 @@ begin
   SepL := TStringList.Create;
   Shps := TList<Cardinal>.Create;
   ObjF := TOBJFile.Create;
+  CMtl := TMaterial.Create(TVector.Create(244, 244, 244), 0); // Default MTL
 
   // Scan the file
   while not Eof(TxtF) do
@@ -231,13 +222,13 @@ begin
     Split(' ', Line, SepL);
 
     // Skip lines and polys larger than 4
-    if (SepL.Count < 4) or (SepL.Count > 6) then
+    if (SepL.Count > 6) then
       Continue;
 
-    case IndexStr(SepL[0], ['v', 'vn', 'f', '#']) of
+    case IndexStr(SepL[0], ['v', 'vn', 'f', 'mtllib', 'usemtl']) of
       0:
         begin
-          Vec3 := ParsVec3(ofst, SepL[1], SepL[2], SepL[3]);
+          Vec3 := ofst + ParsVec3(SepL[1], SepL[2], SepL[3]);
           ObjF.v.Add(Vec3);
 
           // BB scaling
@@ -251,10 +242,12 @@ begin
       // 1: ObjF.vn.Add(ParsVec3(TVector.Zero, SepL[1], SepL[2], SepL[3]));
       2:
         begin
+          if SepL.Count < 3 then Continue;
+          
           if SepL[3] = '' then
             Continue;
           SIdx := Stre.Shps.Add(ParsTria(Stre, ObjF, SepL[1], SepL[2],
-            SepL[3]));
+            SepL[3], CMtl));
           Shps.Add(SIdx);
 
           // Parse 2nd triangle from a quad
@@ -263,16 +256,21 @@ begin
             if SepL[4] = '' then
               Continue;
             SIdx := Stre.Shps.Add(ParsTria(Stre, ObjF, SepL[3], SepL[4],
-              SepL[1]));
+              SepL[1], CMtl));
             Shps.Add(SIdx);
           end;
         end;
-      3:
-        Continue;
+      3: begin // mtllib
+        Mtls := LoadMTL(Stre, 'C:\Repos\Delphi_RayTracer\' + SepL[1]);
+      end;
+      4: begin //usemtl
+        CMtl := Mtls[SepL[1]];
+      end;
     end;
   end;
 
   Result := SubDevide(Stre, 0, Stre.VPos.Add(PMin), Stre.VPos.Add(PMax), Shps);
+//  Result := Stre.Shps.Add(AabbCreate(Stre.VPos.Add(PMin), Stre.VPos.Add(PMax), Shps.ToArray));
   ObjF.Destroy;
   CloseFile(TxtF);
 end;

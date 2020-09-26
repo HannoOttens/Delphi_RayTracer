@@ -29,11 +29,11 @@ type
     cam: TCamera;
     Scene: TScene;
     img: TImage;
-    Stre: TDynStore;
+    Stre: TStore;
     procedure Execute; override;
   public
     constructor Create(img: TImage; const xMax, yMax, tIdx, mIdx: Word;
-      cam: TCamera; Stre: TDynStore; Scene: TScene);
+      cam: TCamera; Stre: TStore; Scene: TScene);
   end;
 
 type
@@ -58,7 +58,7 @@ implementation
 { TRunProcessThread }
 
 constructor TRayTraceThread.Create(img: TImage;
-  const xMax, yMax, tIdx, mIdx: Word; cam: TCamera; Stre: TDynStore;
+  const xMax, yMax, tIdx, mIdx: Word; cam: TCamera; Stre: TStore;
   Scene: TScene);
 begin
   inherited Create(True);
@@ -169,10 +169,10 @@ begin
   OriginRay := TRay.Create(cam.pos, dir, InvVec3(dir), 0);
 end;
 
-function LightIntersect(Stre: TDynStore; Scene: TScene; lr: TRay; ld: Single): Boolean;
+function LightIntersect(Stre: TStore; Scene: TScene; lr: TRay; ld: Single): Boolean;
 var
   intsct: TNullable<TIntersection>;
-  I: Cardinal;
+  I: Integer;
 begin
   Result := False;
 
@@ -209,7 +209,7 @@ begin
   end;
 end;
 
-function RayTrace(Stre: TDynStore; Scene: TScene; cam: TCamera; Ray: TRay): TVector;
+function RayTrace(Stre: TStore; Scene: TScene; cam: TCamera; Ray: TRay): TVector;
 var
   NRay: TRay;
   Shape: TShape;
@@ -295,6 +295,7 @@ var
   tArr: TThreads;
   Bnds: TBounds;
   Stre: TDynStore;
+  FStr: TStore;
 begin
   // Define scene
   Scene := TScene.Create(TList<Cardinal>.Create, TList<TLight>.Create);
@@ -303,35 +304,35 @@ begin
   Stre := TDynStore.Create;
 
   // Add shapes
-//  PIdx := Stre.VPos.Add(TVector.Create(6, 30, -2));
-//  SIdx := Stre.Shps.Add(SphrCreate(PIdx, 2, TMaterial.Create(TVector.Create(0,
-//    255, 255), 0)));
-//  Scene.shapes.Add(SIdx);
-//
-//  PIdx := Stre.VPos.Add(TVector.Create(-8, 35, 0));
-//  SIdx := Stre.Shps.Add(SphrCreate(PIdx, 3, TMaterial.Create(TVector.Create(0,
-//    255, 0), 0.5)));
-//  Scene.shapes.Add(SIdx);
-//
-//  PIdx := Stre.VPos.Add(TVector.Create(0, 28, -3));
-//  SIdx := Stre.Shps.Add(SphrCreate(PIdx, 2, TMaterial.Create(TVector.Create(255,
-//    0, 0), 0)));
-//  Scene.shapes.Add(SIdx);
-//
-//  PIdx := Stre.VPos.Add(TVector.Create(1, 26, 1));
-//  SIdx := Stre.Shps.Add(SphrCreate(PIdx, 0.5,
-//    TMaterial.Create(TVector.Create(255, 255, 0), 0)));
-//  Scene.shapes.Add(SIdx);
+  PIdx := Stre.VPos.Add(TVector.Create(6, 30, -2));
+  SIdx := Stre.Shps.Add(SphrCreate(PIdx, 2, TMaterial.Create(TVector.Create(0,
+    255, 255), 0)));
+  Scene.shapes.Add(SIdx);
+
+  PIdx := Stre.VPos.Add(TVector.Create(-8, 35, 0));
+  SIdx := Stre.Shps.Add(SphrCreate(PIdx, 3, TMaterial.Create(TVector.Create(0,
+    255, 0), 0.5)));
+  Scene.shapes.Add(SIdx);
+
+  PIdx := Stre.VPos.Add(TVector.Create(0, 28, -3));
+  SIdx := Stre.Shps.Add(SphrCreate(PIdx, 2, TMaterial.Create(TVector.Create(255,
+    0, 0), 0)));
+  Scene.shapes.Add(SIdx);
+
+  PIdx := Stre.VPos.Add(TVector.Create(1, 26, 1));
+  SIdx := Stre.Shps.Add(SphrCreate(PIdx, 0.5,
+    TMaterial.Create(TVector.Create(255, 255, 0), 0)));
+  Scene.shapes.Add(SIdx);
 
   // Add objs
-  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\house.obj',
-    TVector.Create(-10, 50, -5)));
+//  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\house.obj',
+//    TVector.Create(-10, 50, -5)));
 //  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\horse.obj',
 //    TVector.Create(0, 300, -40)));
-//  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\teapot.obj',
-//    TVector.Create(10, 40, 3)));
-//  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\cow.obj',
-//    TVector.Create(10, 40, 3)));
+  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\teapot.obj',
+    TVector.Create(10, 40, 3)));
+  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\cow.obj',
+    TVector.Create(0, 30, 0)));
 
 //  // Octree scene
 //  Bnds := Rebound(Stre, Scene.shapes);
@@ -352,12 +353,16 @@ begin
   yMax := Form1.PaintBox1.Height;
   SetLength(img, xMax, yMax);
 
+  // Convert the store to fixed arrays
+  FStr := Stre.ToFixStore;
+  Stre.Destroy;
+
   // Create threads
   tIdx := 0;
   while tIdx < Length(tArr) do
   begin
     tArr[tIdx] := TRayTraceThread.Create(img, xMax, yMax, tIdx, Length(tArr), cam,
-      Stre, Scene);
+      FStr, Scene);
     tIdx := tIdx + 1;
   end;
 
