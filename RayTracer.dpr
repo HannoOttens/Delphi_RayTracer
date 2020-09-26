@@ -11,7 +11,9 @@ uses
   Light in 'Light.pas',
   Nullable in 'Nullable.pas',
   Intersection in 'Intersection.pas',
-  OBJLoader in 'OBJLoader.pas';
+  OBJLoader in 'OBJLoader.pas',
+  MTLLoader in 'MTLLoader.pas',
+  Utils in 'Utils.pas';
 
 {$R *.res}
 
