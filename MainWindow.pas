@@ -177,7 +177,7 @@ begin
   Result := False;
 
   I := 0;
-  while I < Scene.shapes.Count do
+  while I < Length(Scene.shapes) do
   begin
     intsct := Intersect(Stre, Stre.Shps[Scene.shapes[I]], lr, ld);
     if intsct.HasValue and (intsct.Value.d < ld) then
@@ -222,7 +222,7 @@ begin
   // Intersect the scene
   d := Single.PositiveInfinity;
   I := 0;
-  while I < Scene.shapes.Count do
+  while I < Length(Scene.shapes) do
   begin
     intsct := Intersect(Stre, Stre.Shps[Scene.shapes[I]], Ray, d);
     if intsct.HasValue and (intsct.Value.d < d) then
@@ -238,7 +238,8 @@ begin
   begin
     col := TVector.Create(0, 0, 0);
 
-    for I := 0 to Scene.ligths.Count - 1 do
+    I := 0;
+    while I < Length(Scene.ligths) do
     begin
       lv := Scene.ligths[I].pos - hit.Value.point;
       ld := lv.Length;
@@ -258,6 +259,8 @@ begin
         col := col + PowInt(Max(Ray.dir.DotProduct(s), 0), 200) * Scene.ligths
           [I].lum * attn;
       end;
+
+      I := I + 1;
     end;
 
     // Ambient
@@ -296,9 +299,12 @@ var
   Bnds: TBounds;
   Stre: TDynStore;
   FStr: TStore;
+  Shps: TList<Cardinal>;
+  Lgts: TList<TLight>;
 begin
   // Define scene
-  Scene := TScene.Create(TList<Cardinal>.Create, TList<TLight>.Create);
+  Shps := TList<Cardinal>.Create;
+  Lgts := TList<TLight>.Create;
 
   // Initialize store
   Stre := TDynStore.Create;
@@ -307,31 +313,31 @@ begin
   PIdx := Stre.VPos.Add(TVector.Create(6, 30, -2));
   SIdx := Stre.Shps.Add(SphrCreate(PIdx, 2, TMaterial.Create(TVector.Create(0,
     255, 255), 0)));
-  Scene.shapes.Add(SIdx);
+  Shps.Add(SIdx);
 
   PIdx := Stre.VPos.Add(TVector.Create(-8, 35, 0));
   SIdx := Stre.Shps.Add(SphrCreate(PIdx, 3, TMaterial.Create(TVector.Create(0,
     255, 0), 0.5)));
-  Scene.shapes.Add(SIdx);
+  Shps.Add(SIdx);
 
   PIdx := Stre.VPos.Add(TVector.Create(0, 28, -3));
   SIdx := Stre.Shps.Add(SphrCreate(PIdx, 2, TMaterial.Create(TVector.Create(255,
     0, 0), 0)));
-  Scene.shapes.Add(SIdx);
+  Shps.Add(SIdx);
 
   PIdx := Stre.VPos.Add(TVector.Create(1, 26, 1));
   SIdx := Stre.Shps.Add(SphrCreate(PIdx, 0.5,
     TMaterial.Create(TVector.Create(255, 255, 0), 0)));
-  Scene.shapes.Add(SIdx);
+  Shps.Add(SIdx);
 
   // Add objs
 //  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\house.obj',
 //    TVector.Create(-10, 50, -5)));
 //  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\horse.obj',
 //    TVector.Create(0, 300, -40)));
-  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\teapot.obj',
+  Shps.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\teapot.obj',
     TVector.Create(10, 40, 3)));
-  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\cow.obj',
+  Shps.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\cow.obj',
     TVector.Create(0, 30, 0)));
 
 //  // Octree scene
@@ -342,10 +348,11 @@ begin
 //  Scene.shapes.Add(SIdx);
 
   // Add lights
-  Scene.ligths.Add(TLight.Create(TVector.Create(-2, 0, 10), TVector.Create(255,
+  Lgts.Add(TLight.Create(TVector.Create(-2, 0, 10), TVector.Create(255,
     255, 255), 50));
 
-  // Define camera
+  // Define camera  & scene
+  Scene := TScene.Create(Shps.ToArray,Lgts.ToArray);
   cam := TCamera.Create(TVector.Create(0, 0, 0), TVector.Create(0, 1, 0), 3);
 
   // Get canvasSize
