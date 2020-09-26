@@ -2,7 +2,7 @@ object Form1: TForm1
   Left = 0
   Top = 0
   Caption = 'Main'
-  ClientHeight = 604
+  ClientHeight = 602
   ClientWidth = 954
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -26,12 +26,21 @@ object Form1: TForm1
     Height = 13
   end
   object Button1: TButton
-    Left = 8
+    Left = 408
     Top = 571
-    Width = 889
+    Width = 489
     Height = 25
     Caption = 'RAYTRACE'
     TabOrder = 0
     OnClick = Button1Click
+  end
+  object Button2: TButton
+    Left = 8
+    Top = 571
+    Width = 394
+    Height = 25
+    Caption = 'Redraw'
+    TabOrder = 1
+    OnClick = Button2Click
   end
 end

@@ -17,7 +17,9 @@ type
     PaintBox1: TPaintBox;
     Button1: TButton;
     Label1: TLabel;
+    Button2: TButton;
     procedure Button1Click(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
   end;
 
 type
@@ -27,14 +29,15 @@ type
     cam: TCamera;
     Scene: TScene;
     img: TImage;
+    Stre: TStore;
     procedure Execute; override;
   public
     constructor Create(img: TImage; const xMax, yMax, tIdx, mIdx: Word;
-      cam: TCamera; Scene: TScene);
+      cam: TCamera; Stre: TStore; Scene: TScene);
   end;
 
 type
-  TThreads = array [0 .. 7] of TRayTraceThread;
+  TThreads = array [0 .. 6] of TRayTraceThread;
 
 type
   TMainTaskThread = class(TThread)
@@ -48,13 +51,15 @@ type
 
 var
   Form1: TForm1;
+  img: TImage;
 
 implementation
 
 { TRunProcessThread }
 
 constructor TRayTraceThread.Create(img: TImage;
-  const xMax, yMax, tIdx, mIdx: Word; cam: TCamera; Scene: TScene);
+  const xMax, yMax, tIdx, mIdx: Word; cam: TCamera; Stre: TStore;
+  Scene: TScene);
 begin
   inherited Create(True);
   Priority := tpHighest;
@@ -67,6 +72,7 @@ begin
   Self.img := img;
   Self.yMax := yMax;
   Self.xMax := xMax;
+  Self.Stre := Stre;
 
   FreeOnTerminate := False;
   Resume;
@@ -96,7 +102,7 @@ begin
   time := GetTickCount;
 
   tIdx := 0;
-  while tIdx < 8 do
+  while tIdx < Length(threads) do
   begin
     threads[tIdx].WaitFor;
     tIdx := tIdx + 1;
@@ -163,18 +169,21 @@ begin
   OriginRay := TRay.Create(cam.pos, dir, InvVec3(dir), 0);
 end;
 
-function LightIntersect(Scene: TScene; lr: TRay; ld: Single): Boolean;
+function LightIntersect(Stre: TStore; Scene: TScene; lr: TRay; ld: Single): Boolean;
 var
   intsct: TNullable<TIntersection>;
-  Shape: TShape;
+  I: Integer;
 begin
   Result := False;
 
-  for Shape in Scene.shapes do
+  I := 0;
+  while I < Scene.shapes.Count do
   begin
-    intsct := Shape.Intersect(lr, ld);
+    intsct := Intersect(Stre, Stre.Shps[Scene.shapes[I]], lr, ld);
     if intsct.HasValue and (intsct.Value.d < ld) then
       Exit;
+
+    I := I + 1;
   end;
 
   Result := True;
@@ -200,7 +209,7 @@ begin
   end;
 end;
 
-function RayTrace(Scene: TScene; cam: TCamera; Ray: TRay): TVector;
+function RayTrace(Stre: TStore; Scene: TScene; cam: TCamera; Ray: TRay): TVector;
 var
   NRay: TRay;
   Shape: TShape;
@@ -212,14 +221,16 @@ var
 begin
   // Intersect the scene
   d := Single.PositiveInfinity;
-  for Shape in Scene.shapes do
+  I := 0;
+  while I < Scene.shapes.Count do
   begin
-    intsct := Shape.Intersect(Ray, d);
+    intsct := Intersect(Stre, Stre.Shps[Scene.shapes[I]], Ray, d);
     if intsct.HasValue and (intsct.Value.d < d) then
     begin
       d := intsct.Value.d;
       hit := intsct;
     end;
+    I := I + 1;
   end;
 
   // Calculate the color
@@ -233,20 +244,19 @@ begin
       ld := lv.Length;
       lv := lv.Normalize;
 
-      if LightIntersect(Scene, TRay.Create(hit.Value.point + 0.01 *
+      if LightIntersect(Stre, Scene, TRay.Create(hit.Value.point + 0.01 *
         hit.Value.normal, lv, InvVec3(lv), 0), ld) then
       begin
         // Diffuse light
-        attn := 1 / (ld * ld);
-        pow := Min(1, Max(0, lv.DotProduct(hit.Value.normal) * attn *
-          Scene.ligths[I].pow));
+        attn := Scene.ligths[I].pow / (ld * ld);
+        pow := Min(1, Max(0, lv.DotProduct(hit.Value.normal) * attn));
         col := col + pow * hit.Value.mat.color *
           (1.0 - hit.Value.mat.reflective);
 
         // Specular light
         s := lv - 2.0 * lv.DotProduct(hit.Value.normal) * hit.Value.normal;
         col := col + PowInt(Max(Ray.dir.DotProduct(s), 0), 200) * Scene.ligths
-          [I].lum * 0.5;
+          [I].lum * attn;
       end;
     end;
 
@@ -265,7 +275,7 @@ begin
       Ray.bounces := Ray.bounces + 1;
 
       // Calculate color
-      col := col + hit.Value.mat.reflective * RayTrace(Scene, cam, Ray);
+      col := col + hit.Value.mat.reflective * RayTrace(Stre, Scene, cam, Ray);
     end;
 
     Result := col;
@@ -281,36 +291,55 @@ var
   cam: TCamera;
   Scene: TScene;
   xMax, yMax, tIdx: Word;
-  img: TImage;
+  PIdx, SIdx: Cardinal;
   tArr: TThreads;
   Bnds: TBounds;
-  OctT: TShape;
+  Stre: TDynStore;
+  FStr: TStore;
 begin
   // Define scene
-  Scene := TScene.Create(TList<TShape>.Create, TList<TLight>.Create);
+  Scene := TScene.Create(TList<Cardinal>.Create, TList<TLight>.Create);
+
+  // Initialize store
+  Stre := TDynStore.Create;
 
   // Add shapes
-  Scene.shapes.Add(SphrCreate(TVector.Create(6, 30, -2), 2,
-    TMaterial.Create(TVector.Create(0, 255, 255), 0)));
-  Scene.shapes.Add(SphrCreate(TVector.Create(-8, 35, 0), 3,
-    TMaterial.Create(TVector.Create(0, 255, 0), 0.5)));
-  Scene.shapes.Add(SphrCreate(TVector.Create(0, 28, -3), 2,
-    TMaterial.Create(TVector.Create(255, 0, 0), 0)));
-  Scene.shapes.Add(SphrCreate(TVector.Create(1, 26, 1), 0.5,
+  PIdx := Stre.VPos.Add(TVector.Create(6, 30, -2));
+  SIdx := Stre.Shps.Add(SphrCreate(PIdx, 2, TMaterial.Create(TVector.Create(0,
+    255, 255), 0)));
+  Scene.shapes.Add(SIdx);
+
+  PIdx := Stre.VPos.Add(TVector.Create(-8, 35, 0));
+  SIdx := Stre.Shps.Add(SphrCreate(PIdx, 3, TMaterial.Create(TVector.Create(0,
+    255, 0), 0.5)));
+  Scene.shapes.Add(SIdx);
+
+  PIdx := Stre.VPos.Add(TVector.Create(0, 28, -3));
+  SIdx := Stre.Shps.Add(SphrCreate(PIdx, 2, TMaterial.Create(TVector.Create(255,
+    0, 0), 0)));
+  Scene.shapes.Add(SIdx);
+
+  PIdx := Stre.VPos.Add(TVector.Create(1, 26, 1));
+  SIdx := Stre.Shps.Add(SphrCreate(PIdx, 0.5,
     TMaterial.Create(TVector.Create(255, 255, 0), 0)));
-  Scene.shapes.Add(SphrCreate(TVector.Create(1, 26, 1), 0.5,
-    TMaterial.Create(TVector.Create(255, 255, 0), 0)));
-  Scene.shapes.Add(LoadOBJ('C:\Repos\Delphi_RayTracer\cow.obj',
+  Scene.shapes.Add(SIdx);
+
+  // Add objs
+//  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\house.obj',
+//    TVector.Create(-10, 50, -5)));
+//  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\horse.obj',
+//    TVector.Create(0, 300, -40)));
+  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\teapot.obj',
+    TVector.Create(10, 40, 3)));
+  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\cow.obj',
     TVector.Create(0, 30, 0)));
-  Scene.shapes.Add(LoadOBJ('C:\Repos\Delphi_RayTracer\teapot.obj',
-    TVector.Create(0.2, 40, 3)));
 
-  // Octree scene
-  Bnds := Rebound(Scene.shapes);
-  OctT := SubDevide(0, Bnds.PMin, Bnds.PMax, Scene.shapes);
-  Scene.shapes := TList<TShape>.Create();
-  Scene.shapes.Add(OctT);
-
+//  // Octree scene
+//  Bnds := Rebound(Stre, Scene.shapes);
+//  SIdx := SubDevide(Stre, 0, Stre.VPos.Add(Bnds.PMin), Stre.VPos.Add(Bnds.PMax),
+//    Scene.shapes);
+//  Scene.shapes := TList<Cardinal>.Create();
+//  Scene.shapes.Add(SIdx);
 
   // Add lights
   Scene.ligths.Add(TLight.Create(TVector.Create(-2, 0, 10), TVector.Create(255,
@@ -324,11 +353,16 @@ begin
   yMax := Form1.PaintBox1.Height;
   SetLength(img, xMax, yMax);
 
+  // Convert the store to fixed arrays
+  FStr := Stre.ToFixStore;
+  Stre.Destroy;
+
   // Create threads
   tIdx := 0;
-  while tIdx < 8 do
+  while tIdx < Length(tArr) do
   begin
-    tArr[tIdx] := TRayTraceThread.Create(img, xMax, yMax, tIdx, 8, cam, Scene);
+    tArr[tIdx] := TRayTraceThread.Create(img, xMax, yMax, tIdx, Length(tArr), cam,
+      FStr, Scene);
     tIdx := tIdx + 1;
   end;
 
@@ -356,7 +390,7 @@ begin
       begin
 
         org := OriginRay(cam, x, y, xMax, yMax);
-        col := col + RayTrace(Scene, cam, org);
+        col := col + RayTrace(Stre, Scene, cam, org);
       end;
 
       img[x, y] := RGB(ColClamp(col.x), ColClamp(col.y), ColClamp(col.W));
@@ -366,6 +400,26 @@ begin
     x := x + 1;
   end;
   inherited;
+end;
+
+procedure TForm1.Button2Click(Sender: TObject);
+var xMax, yMax, x, y: Word;
+begin
+  xMax := Form1.PaintBox1.Width;
+  yMax := Form1.PaintBox1.Height;
+
+  // Copy pixels
+  x := 0;
+  while x < xMax do
+  begin
+    y := 0;
+    while y < yMax do
+    begin
+      Form1.PaintBox1.Canvas.Pixels[x, y] := img[x, y];
+      y := y + 1;
+    end;
+    x := x + 1;
+  end;
 end;
 
 end.
