@@ -213,7 +213,7 @@ begin
   SepL := TStringList.Create;
   Shps := TList<Cardinal>.Create;
   ObjF := TOBJFile.Create;
-  CMtl := TMaterial.Create(TVector.Create(244, 244, 244), 0); // Default MTL
+  CMtl := TMaterial.Create(TVector.Create(244, 244, 244), 0, 0, 0); // Default MTL
 
   // Scan the file
   while not Eof(TxtF) do

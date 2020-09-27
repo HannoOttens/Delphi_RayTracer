@@ -312,28 +312,28 @@ begin
   // Add shapes
   PIdx := Stre.VPos.Add(TVector.Create(6, 30, -2));
   SIdx := Stre.Shps.Add(SphrCreate(PIdx, 2, TMaterial.Create(TVector.Create(0,
-    255, 255), 0)));
+    255, 255), 0, 0, 0)));
   Shps.Add(SIdx);
 
   PIdx := Stre.VPos.Add(TVector.Create(-8, 35, 0));
   SIdx := Stre.Shps.Add(SphrCreate(PIdx, 3, TMaterial.Create(TVector.Create(0,
-    255, 0), 0.5)));
+    255, 0), 0.5, 0, 0)));
   Shps.Add(SIdx);
 
   PIdx := Stre.VPos.Add(TVector.Create(0, 28, -3));
   SIdx := Stre.Shps.Add(SphrCreate(PIdx, 2, TMaterial.Create(TVector.Create(255,
-    0, 0), 0)));
+    0, 0), 0, 0, 0)));
   Shps.Add(SIdx);
 
   PIdx := Stre.VPos.Add(TVector.Create(1, 26, 1));
   SIdx := Stre.Shps.Add(SphrCreate(PIdx, 0.5,
-    TMaterial.Create(TVector.Create(255, 255, 0), 0)));
+    TMaterial.Create(TVector.Create(255, 255, 0), 0, 0, 0)));
   Shps.Add(SIdx);
 
   // Add objs
 //  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\house.obj',
-//    TVector.Create(-10, 50, -5)));
-//  Scene.shapes.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\horse.obj',
+////    TVector.Create(-10, 50, -5)));
+//  Shps.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\horse.obj',
 //    TVector.Create(0, 300, -40)));
   Shps.Add(LoadOBJ(Stre, 'C:\Repos\Delphi_RayTracer\teapot.obj',
     TVector.Create(10, 40, 3)));

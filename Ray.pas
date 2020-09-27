@@ -8,7 +8,8 @@ type
   TRay = record
   public
     dir, invDir, org: TVector;
-    bounces: Word;
+    bounces: Byte;
+    inside: Boolean;
     constructor Create(org, dir, invDir: TVector; bounces: Word);
   end;
 
@@ -22,6 +23,7 @@ begin
   Self.invDir := invDir;
   Self.dir := dir;
   Self.bounces := bounces;
+  Self.inside := False;
 end;
 
 end.

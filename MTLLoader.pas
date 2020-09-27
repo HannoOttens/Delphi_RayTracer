@@ -46,7 +46,7 @@ begin
     Split(' ', Line, SepL);
     Result := TDictionary<string,TMaterial>.Create;
 
-    case IndexStr(SepL[0], ['newmtl', 'Kd', 'reflectiveness']) of
+    case IndexStr(SepL[0], ['newmtl', 'Kd', 'reflectiveness', 'opaqueness', 'refractive']) of
       0:
         begin
           if CMnm <> '' then
@@ -54,7 +54,7 @@ begin
              Result.Add(CMnm, CMtl);
           end;
 
-          CMtl := TMaterial.Create(TVector.Zero, 0);
+          CMtl := TMaterial.Create(TVector.Zero, 0, 0, 0);
           CMnm := SepL[1];
         end;
       1:
@@ -64,6 +64,14 @@ begin
       2:
         begin
           CMtl.reflective := StrToFloat(SepL[1]);
+        end;
+      3:
+        begin
+          CMtl.opaqueness := StrToFloat(SepL[1]);
+        end;
+      4:
+        begin
+          CMtl.refractive := StrToFloat(SepL[1]);
         end;
     end;
   end;

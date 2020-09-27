@@ -9,17 +9,23 @@ type
   public
     color: TVector;
     reflective: Single;
-    constructor Create(color: TVector; reflective: Single);
+    opaqueness: Single;
+    refractive: Single;
+    constructor Create(color: TVector;
+      reflective, opaqueness, refractive: Single);
   end;
 
 implementation
 
 { TMaterial }
 
-constructor TMaterial.Create(color: TVector; reflective: Single);
+constructor TMaterial.Create(color: TVector;
+  reflective, opaqueness, refractive: Single);
 begin
   Self.color := color;
   Self.reflective := reflective;
+  Self.opaqueness := opaqueness;
+  Self.refractive := refractive;
 end;
 
 end.
